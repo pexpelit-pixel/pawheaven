@@ -1,0 +1,710 @@
+/* Dynamic left-side joystick + adventure-style action cluster. */
+/* Keep the center of the game clear; camera dragging is handled directly on the play canvas. */
+.center-hint{display:none!important}
+.world-compass{display:none!important}
+.touch-controls.touch-enabled{
+  position:absolute!important;inset:0;display:block!important;
+  pointer-events:none;touch-action:none;z-index:6;
+}
+.touch-zone{
+  position:absolute;left:0;top:0;bottom:0;
+  width:52%;pointer-events:auto!important;touch-action:none;
+  background:transparent;z-index:1;
+}
+/* The ring is invisible between touches. Input.js moves it under the finger. */
+.touch-stick{
+  position:absolute;left:12px;right:auto;top:auto;
+  bottom:calc(18px + env(safe-area-inset-bottom));
+  width:118px!important;height:118px!important;opacity:0!important;pointer-events:none!important;
+  pointer-events:none;z-index:2;border-radius:50%;
+  background:rgba(255,255,255,.10);
+  border:2px solid rgba(255,255,255,.28);
+  box-shadow:inset 0 0 0 12px rgba(255,255,255,.06),0 6px 18px rgba(0,0,0,.22);
+  display:grid;place-items:center;touch-action:none;
+  transition:opacity .10s ease;will-change:left,top,opacity;
+}
+.touch-stick.is-active{
+  opacity:1!important;pointer-events:auto!important;
+  background:rgba(255,255,255,.16);
+  border-color:rgba(200,243,106,.45);
+  box-shadow:inset 0 0 0 12px rgba(255,255,255,.08),0 6px 20px rgba(0,0,0,.28);
+}
+.touch-stick-ring{
+  position:absolute;width:72px;height:72px;
+  border:1.5px solid rgba(255,255,255,.28);border-radius:50%;
+}
+.touch-knob{
+  position:absolute;width:46px;height:46px;border-radius:50%;
+  background:rgba(248,252,245,.94);border:2px solid rgba(200,243,106,.62);
+  box-shadow:0 4px 14px rgba(0,0,0,.28);
+  transition:none;will-change:transform;
+}
+.touch-actions{
+  position:absolute!important;right:max(12px,env(safe-area-inset-right))!important;
+  left:auto!important;bottom:calc(42px + env(safe-area-inset-bottom))!important;
+  width:136px!important;height:190px!important;display:grid!important;
+  grid-template-columns:58px 58px;grid-template-rows:58px 58px 58px;
+  grid-template-areas:". jump" "sprint ." ". sit";
+  justify-content:end;align-content:end;gap:8px 10px;
+  pointer-events:auto;z-index:3;
+}
+.touch-action{
+  width:58px!important;height:58px!important;min-width:58px;min-height:58px;
+  margin:0;padding:0;border-radius:50%!important;font-size:11px;font-weight:900;
+  letter-spacing:.04em;display:grid;place-items:center;align-content:center;gap:1px;
+  border:2px solid rgba(255,255,255,.32);background:rgba(12,36,34,.78);
+  color:#eef8f0;box-shadow:0 6px 16px rgba(0,0,0,.28);touch-action:none;
+}
+.touch-action small{font-size:8px;line-height:1;font-weight:900;letter-spacing:.06em}
+.jump-action{
+  grid-area:jump;width:64px!important;height:64px!important;min-width:64px;min-height:64px;
+  font-size:24px!important;background:rgba(200,243,106,.92)!important;
+  color:#123b37!important;border-color:rgba(255,255,255,.45)!important;
+  box-shadow:0 8px 22px rgba(0,0,0,.32),0 0 0 3px rgba(200,243,106,.18)!important;
+}
+.sit-action{grid-area:sit}
+.sprint-action{grid-area:sprint;margin:0!important}
+.touch-action.is-active{
+  background:rgba(200,243,106,.96)!important;color:#123b37!important;
+  border-color:rgba(255,255,255,.62)!important;transform:scale(.94);
+}
+.jump-action.is-active{background:#c8f36a!important;transform:scale(.92)}
+@media(max-width:600px){
+  .touch-zone{top:0;width:52%}
+  .touch-stick{width:108px!important;height:108px!important;left:10px;bottom:calc(16px + env(safe-area-inset-bottom))}
+  .touch-stick-ring{width:66px;height:66px}
+  .touch-knob{width:42px;height:42px}
+  .touch-actions{
+    right:max(10px,env(safe-area-inset-right))!important;
+    bottom:calc(76px + env(safe-area-inset-bottom))!important;
+    width:126px!important;height:178px!important;grid-template-columns:54px 54px;
+    grid-template-rows:54px 54px 54px;gap:8px;
+  }
+  .touch-action{width:54px!important;height:54px!important;font-size:10px}
+  .jump-action{width:60px!important;height:60px!important;min-width:60px;min-height:60px;font-size:23px!important}
+}
+@media(orientation:landscape) and (max-height:560px){
+  .touch-zone{top:0;width:52%}
+  .touch-stick{width:88px!important;height:88px!important;bottom:calc(10px + env(safe-area-inset-bottom))}
+  .touch-stick-ring{width:54px;height:54px}
+  .touch-knob{width:34px;height:34px}
+  .touch-actions{
+    width:112px!important;height:156px!important;
+    bottom:calc(42px + env(safe-area-inset-bottom))!important;
+    grid-template-columns:48px 48px;grid-template-rows:48px 48px 48px;gap:6px 8px;
+  }
+  .touch-action{width:48px!important;height:48px!important;font-size:9px}
+  .jump-action{width:54px!important;height:54px!important;min-width:54px;min-height:54px;font-size:20px!important}
+}
+
+/* Live swipe meter: 85% of available upward screen travel from touch start locks auto-run. */
+.touch-percent{
+  position:absolute;left:50%;top:-34px;transform:translateX(-50%);
+  min-width:46px;padding:5px 9px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.38);background:rgba(12,36,34,.88);
+  color:#eef8f0;font:900 12px/1.1 system-ui,sans-serif;letter-spacing:.02em;
+  text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap;
+  pointer-events:none;z-index:3;box-shadow:0 3px 10px rgba(0,0,0,.25);
+}
+.touch-percent.is-ready{
+  background:rgba(200,243,106,.97);color:#123b37;border-color:rgba(255,255,255,.72);
+}
+
+/* Thumb-friendly controls: larger targets, moved inward from the screen edges. */
+.touch-controls.touch-enabled .touch-actions{
+  right:clamp(24px,7vw,60px)!important;
+  bottom:clamp(96px,15vh,142px)!important;
+  width:174px!important;height:246px!important;
+  grid-template-columns:80px 80px!important;
+  grid-template-rows:80px 80px 80px!important;
+  gap:8px 10px!important;
+}
+.touch-controls.touch-enabled .touch-action{
+  width:72px!important;height:72px!important;
+  min-width:72px!important;min-height:72px!important;
+  font-size:12px!important;border-radius:50%!important;
+}
+.touch-controls.touch-enabled .touch-action small{font-size:9px!important;}
+.touch-controls.touch-enabled .jump-action{
+  width:84px!important;height:84px!important;
+  min-width:84px!important;min-height:84px!important;font-size:28px!important;
+}
+@media(max-width:600px){
+  .touch-controls.touch-enabled .touch-actions{
+    right:clamp(22px,7vw,38px)!important;
+    bottom:clamp(96px,15vh,132px)!important;
+    width:164px!important;height:240px!important;
+    grid-template-columns:76px 76px!important;
+    grid-template-rows:76px 76px 76px!important;
+    gap:8px 8px!important;
+  }
+  .touch-controls.touch-enabled .touch-action{
+    width:70px!important;height:70px!important;
+    min-width:70px!important;min-height:70px!important;font-size:12px!important;
+  }
+  .touch-controls.touch-enabled .touch-action small{font-size:9px!important;}
+  .touch-controls.touch-enabled .jump-action{
+    width:80px!important;height:80px!important;
+    min-width:80px!important;min-height:80px!important;font-size:27px!important;
+  }
+}
+@media(orientation:landscape) and (max-height:560px){
+  .touch-controls.touch-enabled .touch-actions{
+    right:clamp(22px,5vw,42px)!important;
+    bottom:clamp(14px,4vh,26px)!important;
+    width:138px!important;height:192px!important;
+    grid-template-columns:64px 64px!important;
+    grid-template-rows:64px 64px 64px!important;gap:4px 6px!important;
+  }
+  .touch-controls.touch-enabled .touch-action{
+    width:60px!important;height:60px!important;
+    min-width:60px!important;min-height:60px!important;font-size:11px!important;
+  }
+  .touch-controls.touch-enabled .touch-action small{font-size:8px!important;}
+  .touch-controls.touch-enabled .jump-action{
+    width:66px!important;height:66px!important;
+    min-width:66px!important;min-height:66px!important;font-size:23px!important;
+  }
+}
+
+/* Adventure HUD refresh: clean silhouette, safe-area-aware touch layout, and asset-backed SVG icons. */
+.ui-icon{
+  display:inline-block;
+  width:20px;height:20px;flex:0 0 auto;
+  background-color:currentColor;
+  -webkit-mask-image:var(--ui-icon-url);
+  mask-image:var(--ui-icon-url);
+  -webkit-mask-position:center;
+  mask-position:center;
+  -webkit-mask-repeat:no-repeat;
+  mask-repeat:no-repeat;
+  -webkit-mask-size:contain;
+  mask-size:contain;
+  vertical-align:middle;
+  pointer-events:none;
+}
+.brand-mark .ui-icon{width:19px;height:19px;color:#123b37}
+.eyebrow-icon{width:13px;height:13px}
+.activity-symbol .ui-icon{width:16px;height:16px;color:#c8f36a}
+.note-sparkle{width:18px;height:18px}
+.quality-glyph{width:20px;height:20px}
+.loading-paw .ui-icon{width:38px;height:38px;color:#174b3e}
+.error-symbol .ui-icon{width:24px;height:24px;color:#f0b08b}
+.icon-btn .ui-icon{width:19px;height:19px}
+.camera-controls .ui-icon{width:19px;height:19px}
+.touch-action .ui-icon{width:22px;height:22px}
+.touch-action small{display:block;line-height:1.05}
+.fullscreen-button .ui-icon{width:16px;height:16px}
+.close-settings .ui-icon{width:18px;height:18px}
+button,a{-webkit-tap-highlight-color:transparent}
+button{touch-action:manipulation}
+button:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:2px solid #c8f36a;outline-offset:3px}
+#game{height:100%;height:100dvh;min-height:0;overflow:hidden;overscroll-behavior:none}
+.topbar{top:calc(10px + env(safe-area-inset-top));left:14px;right:14px;height:54px;padding:0 13px;border-radius:15px;gap:12px}
+.top-actions{gap:8px}
+.icon-btn{width:42px;height:42px;min-width:42px;min-height:42px;display:grid;place-items:center;border-radius:12px}
+.fps-pill{min-height:34px}
+.mission-card{top:calc(78px + env(safe-area-inset-top));left:16px;width:248px;padding:16px;border-radius:16px}
+.mission-card h1{margin:12px 0 8px;font-size:22px;line-height:1.08}
+.mission-card p{font-size:10px;line-height:1.6}
+.activity-row{min-width:0}
+.activity-row>div{min-width:0}
+.activity-row b,.activity-row small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.right-note{top:calc(78px + env(safe-area-inset-top));right:16px}
+.camera-controls{top:auto;right:14px;bottom:auto;left:auto;transform:none;display:flex;flex-direction:row;gap:4px;padding:4px;border-radius:13px;z-index:5}
+.camera-controls button{width:42px;height:42px;min-width:42px;min-height:42px;display:grid;place-items:center;border-radius:10px}
+.camera-controls button:nth-child(2){color:#c8f36a}
+.center-hint{top:auto;bottom:calc(25px + env(safe-area-inset-bottom));max-width:min(440px,70vw);white-space:normal;text-align:center;line-height:1.35}
+.settings-panel{max-height:calc(100dvh - 110px - env(safe-area-inset-top));overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.quality-option{min-height:88px}
+.settings-close{min-width:44px;min-height:44px}
+.settings-foot button{min-height:44px;min-width:80px}
+.theme-switch{min-height:42px}
+.bottom-ui{bottom:calc(14px + env(safe-area-inset-bottom))}
+
+.loading-screen{padding:env(safe-area-inset-top) 18px env(safe-area-inset-bottom)}
+.loading-paw{display:grid;place-items:center}
+
+@media(max-width:900px),(pointer:coarse){
+  .topbar{
+    top:calc(8px + env(safe-area-inset-top));
+    left:calc(8px + env(safe-area-inset-left));
+    right:calc(8px + env(safe-area-inset-right));
+    height:54px;padding:0 10px;gap:8px;border-radius:15px;
+  }
+  .brand{font-size:10px;gap:7px;letter-spacing:.1em}
+  .brand-mark{width:31px;height:31px;border-radius:10px}
+  .brand small{font-size:7px;letter-spacing:.13em}
+  .top-actions{gap:6px}
+  .icon-btn{width:42px;height:42px;min-width:42px;min-height:42px}
+  .mission-card{
+    top:calc(72px + env(safe-area-inset-top));
+    left:calc(10px + env(safe-area-inset-left));
+    width:min(218px,52vw);padding:12px 13px;border-radius:14px;
+    background:rgba(8,34,33,.86);box-shadow:0 8px 22px rgba(0,0,0,.18);
+  }
+  .mission-card .eyebrow{font-size:7px;letter-spacing:.1em}
+  .mission-card h1{font-size:19px;margin:8px 0 6px}
+  .mission-card p{font-size:9px;line-height:1.5;-webkit-line-clamp:2}
+  .mission-divider{margin:8px 0}
+  .activity-row{gap:8px}
+  .activity-row b{font-size:9px}
+  .activity-row small{font-size:8px}
+  .right-note{top:calc(72px + env(safe-area-inset-top));right:10px;padding:8px 10px}
+  .camera-controls{
+    top:calc(72px + env(safe-area-inset-top));
+    right:calc(10px + env(safe-area-inset-right));
+    bottom:auto;left:auto;transform:none;
+    flex-direction:row;gap:3px;padding:4px;border-radius:12px;
+    background:rgba(8,34,33,.86);box-shadow:0 6px 18px rgba(0,0,0,.18);
+  }
+  .camera-controls button{width:40px;height:40px;min-width:40px;min-height:40px}
+  .center-hint{display:none!important}
+  .bottom-ui{display:none!important}
+
+  .settings-panel{
+    top:auto!important;left:calc(10px + env(safe-area-inset-left))!important;
+    right:calc(10px + env(safe-area-inset-right))!important;
+    bottom:calc(10px + env(safe-area-inset-bottom))!important;
+    width:auto!important;max-height:min(78dvh,560px);
+    padding:18px;border-radius:20px;background:#082b2a;
+    box-shadow:0 22px 70px rgba(0,0,0,.42);
+  }
+  .settings-head h2{font-size:22px}
+  .settings-copy{font-size:11px;line-height:1.6;margin:10px 0 15px}
+  .quality-options{gap:7px}
+  .quality-option{min-height:94px;padding:12px 5px;border-radius:13px;gap:6px}
+  .quality-option b{font-size:12px}
+  .quality-option small{font-size:9px;line-height:1.25;text-align:center}
+  .settings-foot{margin-top:14px;padding-top:12px}
+  .settings-foot>span{font-size:8px}
+  .theme-preview-row{margin-top:12px;padding:12px 0}
+  .theme-preview-copy b{font-size:12px}
+  .theme-preview-copy small{font-size:10px}
+}
+
+@media(max-width:600px),(pointer:coarse){
+  .topbar{height:52px;padding:0 8px}
+  .top-center,.fps-pill{display:none!important}
+  .brand{font-size:10px}
+  .brand small{font-size:7px}
+  .top-actions{margin-left:auto;gap:6px}
+  .icon-btn{width:42px;height:42px;min-width:42px;min-height:42px;border-radius:12px}
+  .mission-card{
+    top:calc(70px + env(safe-area-inset-top));
+    left:calc(10px + env(safe-area-inset-left));
+    width:min(188px,calc(100vw - 164px));min-width:142px;
+    padding:10px 11px;border-radius:13px;
+  }
+  .mission-card .eyebrow{font-size:6.5px;gap:5px}
+  .mission-card h1{font-size:17px;line-height:1.05;margin:7px 0 0}
+  .mission-card p,.mission-divider{display:none!important}
+  .activity-row{margin-top:7px}
+  .activity-symbol{width:24px;height:24px;border-radius:8px}
+  .activity-row b{font-size:8.5px}
+  .activity-row small{font-size:7.5px}
+  .right-note{display:none!important}
+  .camera-controls{
+    top:calc(70px + env(safe-area-inset-top));
+    right:calc(10px + env(safe-area-inset-right));
+    gap:3px;padding:3px;border-radius:12px;
+  }
+  .camera-controls button{width:39px;height:39px;min-width:39px;min-height:39px}
+  .camera-controls .ui-icon{width:18px;height:18px}
+  .touch-controls.touch-enabled{
+    position:absolute!important;inset:0!important;display:block!important;
+    z-index:6;pointer-events:none;touch-action:none;
+  }
+  .touch-zone{
+    position:absolute!important;left:0!important;right:auto!important;
+    top:calc(60px + env(safe-area-inset-top))!important;
+    bottom:calc(4px + env(safe-area-inset-bottom))!important;
+    width:50%!important;z-index:1;pointer-events:auto!important;touch-action:none;
+    background:transparent!important;
+  }
+  .touch-stick{
+    width:112px!important;height:112px!important;
+    left:12px;top:auto;bottom:calc(18px + env(safe-area-inset-bottom));
+    opacity:0!important;pointer-events:none!important;z-index:2;
+    border:2px solid rgba(235,255,240,.58);
+    background:rgba(8,34,33,.34);
+    box-shadow:inset 0 0 0 9px rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.23);
+    backdrop-filter:none;transition:opacity .12s ease;
+  }
+  .touch-stick.is-active{opacity:1!important;pointer-events:none!important;border-color:rgba(200,243,106,.78)}
+  .touch-stick-ring{width:68px!important;height:68px!important;border:1px solid rgba(237,255,242,.4)}
+  .touch-knob{width:45px!important;height:45px!important;background:#eaf4e8;border:2px solid rgba(200,243,106,.8);box-shadow:0 4px 12px rgba(0,0,0,.28)}
+  .touch-actions{
+    position:absolute!important;left:auto!important;right:calc(12px + env(safe-area-inset-right))!important;
+    bottom:calc(20px + env(safe-area-inset-bottom))!important;
+    width:176px!important;height:248px!important;
+    display:grid!important;grid-template-columns:76px 76px!important;
+    grid-template-rows:76px 76px 76px!important;
+    grid-template-areas:". jump" "sprint ." ". sit"!important;
+    justify-content:end!important;align-content:end!important;
+    gap:8px 9px!important;z-index:4;pointer-events:auto!important;
+  }
+  .touch-action{
+    width:68px!important;height:68px!important;min-width:68px!important;min-height:68px!important;
+    padding:0!important;margin:0!important;border-radius:50%!important;
+    display:flex!important;flex-direction:column;align-items:center;justify-content:center;
+    gap:3px;border:1px solid rgba(232,255,239,.25);
+    background:rgba(8,34,33,.88)!important;color:#f1fff5!important;
+    box-shadow:0 7px 18px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.07);
+    font-size:11px!important;touch-action:none;backdrop-filter:none;
+  }
+  .touch-action .ui-icon{width:22px;height:22px;color:currentColor}
+  .touch-action small{font-size:9px!important;font-weight:900;line-height:1;letter-spacing:.08em}
+  .jump-action{
+    grid-area:jump!important;justify-self:end;width:80px!important;height:80px!important;
+    min-width:80px!important;min-height:80px!important;
+    color:#102e2a!important;background:#c8f36a!important;border:2px solid rgba(246,255,227,.9)!important;
+    box-shadow:0 8px 24px rgba(0,0,0,.32),0 0 0 4px rgba(200,243,106,.18)!important;
+  }
+  .jump-action .ui-icon{width:27px;height:27px}
+  .sprint-action{grid-area:sprint!important;justify-self:start}
+  .sit-action{grid-area:sit!important;justify-self:end}
+  .touch-action.is-active{background:#d8f89a!important;color:#102e2a!important;transform:scale(.94)}
+  .jump-action.is-active{background:#e1ffad!important;transform:scale(.93)}
+  .touch-percent{top:-33px;min-width:48px;padding:6px 9px;font-size:12px}
+
+  .loading-brand{top:calc(17px + env(safe-area-inset-top));left:calc(16px + env(safe-area-inset-left))}
+  .loading-paw{width:66px;height:66px;border-radius:22px}
+  .loading-paw .ui-icon{width:34px;height:34px}
+  .loading-copy h2{font-size:21px}
+  .loading-copy p{max-width:min(290px,84vw);line-height:1.55}
+}
+
+@media(orientation:landscape) and (max-height:560px) and (pointer:coarse){
+  .topbar{top:calc(5px + env(safe-area-inset-top));height:46px}
+  .brand small{display:none}
+  .mission-card{display:none!important}
+  .camera-controls{top:calc(57px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right))}
+  .touch-zone{top:calc(50px + env(safe-area-inset-top))!important;bottom:calc(2px + env(safe-area-inset-bottom))!important}
+  .touch-stick{width:82px!important;height:82px!important;bottom:calc(8px + env(safe-area-inset-bottom))}
+  .touch-stick-ring{width:52px!important;height:52px!important}
+  .touch-knob{width:35px!important;height:35px!important}
+  .touch-actions{
+    right:calc(12px + env(safe-area-inset-right))!important;
+    bottom:calc(7px + env(safe-area-inset-bottom))!important;
+    width:128px!important;height:166px!important;
+    grid-template-columns:58px 58px!important;grid-template-rows:58px 58px 58px!important;
+    gap:4px 6px!important;
+  }
+  .touch-action{width:56px!important;height:56px!important;min-width:56px!important;min-height:56px!important}
+  .touch-action .ui-icon{width:18px;height:18px}
+  .touch-action small{font-size:7px!important}
+  .jump-action{width:62px!important;height:62px!important;min-width:62px!important;min-height:62px!important}
+  .jump-action .ui-icon{width:21px;height:21px}
+
+}
+@media(prefers-reduced-motion:reduce){
+  .touch-action,.icon-btn,.camera-controls button{transition:none!important}
+}
+
+.settings-foot-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.settings-foot .settings-fullscreen{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  min-width:124px;min-height:44px;padding:0 12px;
+  border:1px solid rgba(235,255,240,.18);
+  border-radius:10px;background:rgba(255,255,255,.06)!important;
+  color:#eaf8ef!important;font-size:9px;letter-spacing:.06em;
+}
+.settings-foot .settings-fullscreen .ui-icon{width:16px;height:16px}
+#settings-done{min-height:44px;min-width:84px}
+@media(max-width:600px),(pointer:coarse){
+  .settings-foot{display:grid;grid-template-columns:1fr;gap:12px}
+  .settings-foot-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);width:100%;gap:8px}
+  .settings-foot-actions button{width:100%;min-width:0!important;padding:0 8px!important}
+  .settings-foot .settings-fullscreen{font-size:8px;letter-spacing:.02em}
+}
+
+.settings-foot .settings-fullscreen [data-button-label]{font-size:9px;white-space:nowrap}
+@media(max-width:600px),(pointer:coarse){
+  .settings-foot .settings-fullscreen [data-button-label]{font-size:8px!important;letter-spacing:.02em}
+}
+
+/* FPS visibility is user-controlled; enabled mode overrides the compact mobile HUD defaults. */
+.display-setting-row{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  margin-top:14px;padding:13px 0;border-top:1px solid rgba(235,255,240,.13);
+}
+.display-setting-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:5px}
+.display-setting-copy b{font-size:12px;color:#f4fff7;font-weight:800}
+.display-setting-copy small{font-size:10px;line-height:1.4;color:#b9d4c7}
+.setting-switch{
+  flex:0 0 auto;min-width:62px;min-height:38px;padding:4px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid rgba(235,255,240,.18);border-radius:999px;
+  background:rgba(255,255,255,.07);color:#c4d9cc;
+  font-size:10px;font-weight:900;letter-spacing:.08em;
+  cursor:pointer;touch-action:manipulation;
+}
+.setting-switch[aria-checked="true"]{
+  border-color:#c8f36a;background:#c8f36a;color:#123b37;
+  box-shadow:0 0 0 3px rgba(200,243,106,.12);
+}
+.setting-switch:focus-visible{outline:2px solid #c8f36a;outline-offset:3px}
+#game:not(.show-fps) .fps-pill{display:none!important}
+@media(max-width:900px),(pointer:coarse){
+  .display-setting-row{margin-top:12px;padding:12px 0}
+  .display-setting-copy b{font-size:12px}
+  .display-setting-copy small{font-size:10px}
+  .setting-switch{min-width:64px;min-height:42px}
+  #game.show-fps .fps-pill{
+    display:flex!important;align-items:center;gap:4px;
+    min-height:30px;padding:5px 7px;font-size:8px;letter-spacing:0;
+    border-radius:10px;background:rgba(255,255,255,.07);
+  }
+  #game.show-fps .fps-pill b{font-size:10px}
+}
+@media(max-width:380px){
+  #game.show-fps .fps-pill span{display:none}
+  #game.show-fps .fps-pill{padding:5px 6px;gap:4px}
+}
+
+
+/* Advanced settings are exposed through the user-toggleable Developer Mode. */
+.advanced-settings{margin-top:14px;border-top:1px solid rgba(235,255,240,.13);border-bottom:1px solid rgba(235,255,240,.13)}
+.advanced-settings[hidden]{display:none!important}
+.advanced-settings-summary{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  min-height:52px;padding:7px 2px;list-style:none;cursor:pointer;
+  color:#effff3;touch-action:manipulation;user-select:none;
+}
+.advanced-settings-summary::-webkit-details-marker{display:none}
+.advanced-settings-title{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
+.advanced-settings-title b{font-size:11px;font-weight:900;letter-spacing:.045em;text-transform:uppercase}
+.advanced-settings-title small{font-size:10px;line-height:1.4;color:#a8c8b9}
+.advanced-chevron{font-size:19px;line-height:1;color:#c8f36a;transition:transform .16s ease}
+.advanced-settings[open] .advanced-chevron{transform:rotate(180deg)}
+.advanced-settings-body{padding:0 0 4px}
+.advanced-settings-body .display-setting-row:first-child{margin-top:0}
+.advanced-settings-summary:focus-visible{outline:2px solid #c8f36a;outline-offset:2px;border-radius:8px}
+#game.morning-check-disabled .mission-card,
+#game.morning-check-disabled .right-note{display:none!important}
+@media(prefers-reduced-motion:reduce){.advanced-chevron{transition:none!important}}
+
+
+/* Scroll-first settings: avoid repaint-heavy glass/shadows and contain the scroll surface. */
+.settings-panel{
+  contain:layout style;
+  background:#082b2a!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
+  touch-action:pan-y;
+  scrollbar-gutter:stable;
+  box-shadow:0 8px 26px rgba(0,0,0,.28)!important;
+}
+#game.settings-open .fps-pill{visibility:hidden!important}
+.settings-panel .quality-option,
+.settings-panel .theme-switch,
+.settings-panel .setting-switch,
+.settings-panel .fullscreen-button,
+.settings-panel #settings-done{transition:none!important}
+.settings-panel .quality-option:hover{transform:none!important}
+.setting-row-icon{width:18px;height:18px;flex:0 0 18px;color:#c8f36a}
+.advanced-settings-icon{width:17px;height:17px;flex:0 0 17px;color:#c8f36a}
+.advanced-chevron{width:18px!important;height:18px!important;flex:0 0 18px;background-color:#c8f36a}
+.settings-foot #settings-done{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.settings-foot #settings-done .ui-icon{width:13px;height:13px}
+.loading-star{display:block;background-color:currentColor}
+.loading-star.star-one{width:19px;height:19px}
+.loading-star.star-two{width:24px;height:24px}
+.loading-star.star-three{width:27px;height:27px}
+@media(max-width:900px),(pointer:coarse){
+  .settings-panel{box-shadow:0 6px 22px rgba(0,0,0,.25)!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .settings-panel *{scroll-behavior:auto!important}
+}
+
+.theme-preview-copy{flex:1}
+
+
+/* K-09 item pickup, mouth-carry and compact field-pack inventory. */
+.inventory-toggle{position:relative;display:flex;align-items:center;justify-content:center;gap:5px;width:auto;min-width:42px;padding:0 9px;color:#c8f36a}
+.game-quick-actions{position:absolute;z-index:9;top:98px;left:16px;display:flex;align-items:center;gap:8px;pointer-events:auto}
+#game.hud-hidden .game-quick-actions{top:12px;left:12px}
+.game-quick-actions .inventory-toggle{width:48px;height:48px;min-width:48px;padding:0;border:1px solid rgba(200,243,106,.6);border-radius:15px;background:rgba(9,35,34,.94);color:#c8f36a;box-shadow:0 8px 22px rgba(0,0,0,.25)}
+.game-quick-actions .inventory-toggle .ui-icon{width:24px;height:24px}
+.field-drop-button{display:none;align-items:center;justify-content:center;flex-direction:column;gap:2px;width:48px;height:48px;padding:0;border:1px solid rgba(231,255,239,.25);border-radius:15px;background:rgba(9,35,34,.94);color:#f6fff7;box-shadow:0 8px 22px rgba(0,0,0,.25);cursor:pointer;touch-action:manipulation}
+.field-drop-button.is-available{display:flex}
+.field-drop-button:disabled:not(.is-available){display:none!important;pointer-events:none!important}
+.field-drop-glyph{font:900 21px/1 system-ui,sans-serif;color:#c8f36a}
+.field-drop-button small{font:900 8px/1 system-ui,sans-serif;letter-spacing:.1em}
+@media(max-width:900px),(pointer:coarse){
+  .game-quick-actions{top:62px;left:8px;gap:6px}
+  .game-quick-actions .inventory-toggle,.game-quick-actions .field-drop-button{width:42px;height:42px;min-width:42px;border-radius:12px}
+  .game-quick-actions .inventory-toggle .ui-icon{width:21px;height:21px}
+  .game-quick-actions .inventory-count{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px}
+}
+#game.hud-hidden .inventory-panel{top:70px!important}
+
+.inventory-toggle .ui-icon{width:18px;height:18px}
+.inventory-count{display:inline-grid;place-items:center;min-width:17px;height:17px;padding:0 4px;border-radius:6px;background:#c8f36a;color:#123b37;font:900 9px/1 system-ui,sans-serif}
+.inventory-panel{position:absolute;z-index:7;top:152px;left:16px;right:auto;width:min(326px,calc(100vw - 24px));max-height:calc(100vh - 168px);max-height:calc(100dvh - 168px);overflow:auto;overscroll-behavior:contain;contain:layout style;padding:15px;border:1px solid rgba(202,243,207,.2);border-radius:17px;background:rgba(8,29,31,.97);color:#effbf1;box-shadow:0 18px 45px rgba(0,0,0,.3);backdrop-filter:none;-webkit-backdrop-filter:none}
+.inventory-panel[hidden],.interaction-prompt[hidden]{display:none!important}
+.inventory-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:13px;border-bottom:1px solid rgba(224,255,230,.13)}
+.inventory-head>div{display:grid;gap:4px}
+.inventory-eyebrow{font:900 8px/1.1 system-ui,sans-serif;letter-spacing:.16em;color:#c8f36a}
+.inventory-head b{font:900 20px/1.1 system-ui,sans-serif;letter-spacing:-.04em}
+.inventory-head small{font:700 8px/1.3 system-ui,sans-serif;letter-spacing:.1em;color:#a3c3b2}
+.inventory-close{flex:0 0 auto}
+.inventory-close .ui-icon{width:16px;height:16px}
+.inventory-slots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;padding:13px 0}
+.inventory-slot{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:0;min-height:66px;padding:7px 3px;border:1px solid rgba(215,250,224,.12);border-radius:10px;background:rgba(255,255,255,.035);color:#effbf1;cursor:pointer;touch-action:manipulation}
+.inventory-slot:focus-visible,.inventory-toggle:focus-visible,.inventory-foot button:focus-visible{outline:2px solid #c8f36a;outline-offset:2px}
+.inventory-slot.has-item{border-color:rgba(200,243,106,.33);background:linear-gradient(145deg,rgba(200,243,106,.13),rgba(255,255,255,.045))}
+.inventory-item-icon{font-size:21px;line-height:1.1}
+.inventory-slot small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:800 7px/1.1 system-ui,sans-serif;letter-spacing:.025em;color:#c4dace}
+.inventory-slot-number{color:#78988a;font:900 13px/1 system-ui,sans-serif}
+.inventory-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:11px;border-top:1px solid rgba(224,255,230,.13)}
+.inventory-foot>span{max-width:165px;color:#a9c7b7;font:600 9px/1.5 system-ui,sans-serif}
+.inventory-foot button{display:flex;align-items:center;gap:6px;flex:0 0 auto;border:1px solid rgba(255,255,255,.16);border-radius:9px;padding:9px 10px;background:rgba(255,255,255,.07);color:#f6fff7;font:900 8px/1 system-ui,sans-serif;letter-spacing:.04em}
+.inventory-foot button:disabled{opacity:.38}
+.inventory-foot kbd{padding:2px 4px;border-radius:4px;background:rgba(255,255,255,.1);font:800 8px/1 system-ui,sans-serif}
+.interaction-prompt{position:absolute;z-index:5;left:50%;bottom:clamp(132px,20vh,205px);transform:translateX(-50%);display:flex;align-items:center;gap:9px;max-width:calc(100vw - 24px);padding:10px 13px;border:1px solid rgba(200,243,106,.3);border-radius:12px;background:rgba(8,29,31,.93);color:#f4fff5;box-shadow:0 9px 24px rgba(0,0,0,.2);font:800 10px/1.3 system-ui,sans-serif;letter-spacing:.035em;white-space:nowrap;pointer-events:none}
+.interaction-key{display:grid;place-items:center;min-width:25px;height:25px;border-radius:7px;background:#c8f36a;color:#123b37;font:900 11px/1 system-ui,sans-serif}
+.touch-interact-button{display:none;position:absolute!important;pointer-events:auto!important;z-index:4;align-items:center;justify-content:center;flex-direction:column;gap:3px;border:1px solid rgba(200,243,106,.62)!important;background:rgba(9,35,34,.88)!important;color:#c8f36a!important;box-shadow:0 8px 22px rgba(0,0,0,.22)!important;touch-action:manipulation!important}
+.touch-interact-button{position:relative;isolation:isolate;--hold-progress:0%}
+.touch-interact-button::before{content:"";position:absolute;inset:-4px;border-radius:inherit;padding:3px;background:conic-gradient(#c8f36a var(--hold-progress,0%),rgba(200,243,106,.12) 0);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;opacity:.95}
+.touch-interact-button.is-holding::before{filter:drop-shadow(0 0 5px rgba(200,243,106,.55))}
+.touch-interact-button .ui-icon{width:22px;height:22px}
+.touch-interact-button small{font:900 8px/1 system-ui,sans-serif!important;letter-spacing:.08em}
+.touch-interact-button:disabled{opacity:.44!important}
+.touch-interact-button.is-available{opacity:1!important;background:rgba(18,51,40,.96)!important;box-shadow:0 0 0 3px rgba(200,243,106,.1),0 8px 24px rgba(0,0,0,.24)!important}
+#game.hud-hidden .interaction-prompt{display:none!important}
+@media(max-width:900px),(pointer:coarse){
+  .touch-controls.touch-enabled .touch-interact-button{display:flex!important;right:clamp(24px,7vw,60px)!important;bottom:clamp(332px,45vh,370px)!important;width:58px!important;height:58px!important;min-width:58px!important;min-height:58px!important;border-radius:50%!important}
+}
+@media(max-width:580px){
+  .inventory-panel{top:110px;left:8px;right:auto;width:min(282px,calc(100vw - 16px));padding:12px;max-height:calc(100dvh - 122px)}
+  .inventory-slots{gap:5px;padding:10px 0}
+  .inventory-slot{min-height:58px;border-radius:8px}
+  .inventory-item-icon{font-size:19px}
+  .inventory-slot small{font-size:6.5px}
+  .inventory-foot>span{font-size:8px;max-width:145px}
+  .inventory-foot button{padding:8px 7px;font-size:7px}
+  .interaction-prompt{bottom:clamp(160px,25vh,220px);padding:8px 10px;font-size:9px;white-space:normal}
+  .touch-controls.touch-enabled .touch-interact-button{right:clamp(24px,7vw,45px)!important;bottom:clamp(332px,45vh,350px)!important;width:54px!important;height:54px!important;min-width:54px!important;min-height:54px!important}
+}
+
+
+/* Wide phone layout: keep the field clear and place a larger pickup target on the right half. */
+@media (orientation:landscape) and (max-height:600px) and (pointer:coarse){
+  #game .center-hint,
+  #game .interaction-prompt{display:none!important}
+  #game .touch-controls.touch-enabled .touch-interact-button{
+    top:50%!important;
+    right:25vw!important;
+    bottom:auto!important;
+    transform:translateY(-50%)!important;
+    width:68px!important;
+    height:68px!important;
+    min-width:68px!important;
+    min-height:68px!important;
+    border-radius:22px!important;
+    gap:7px!important;
+    box-shadow:0 0 0 4px rgba(200,243,106,.14),0 12px 28px rgba(0,0,0,.32)!important;
+  }
+  #game .touch-controls.touch-enabled .touch-interact-button .ui-icon{
+    width:25px!important;
+    height:25px!important;
+  }
+  #game .touch-controls.touch-enabled .touch-interact-button small{
+    font-size:11px!important;
+    letter-spacing:.1em!important;
+  }
+}
+
+
+/* Inactive pickup controls must not sit above the canvas and steal camera gestures. */
+@media (max-width:900px),(pointer:coarse){
+  #game .touch-controls.touch-enabled .touch-interact-button:not(.is-available){
+    display:none!important;
+    pointer-events:none!important;
+  }
+  #game .touch-controls.touch-enabled .touch-interact-button.is-available{
+    pointer-events:auto!important;
+  }
+}
+
+
+/* Keep the field-pack buttons clear of the briefing card while the HUD is visible. */
+#game:not(.hud-hidden) .mission-card{top:152px!important}
+@media(max-width:900px),(pointer:coarse){
+  #game:not(.hud-hidden) .mission-card{top:112px!important}
+}
+
+/* Landscape gamepad sizing: RUN is the largest target, followed by JUMP and SIT. */
+@media (orientation:landscape) and (max-height:600px) and (pointer:coarse){
+  #game .touch-controls.touch-enabled .touch-actions{
+    width:202px!important;height:270px!important;
+    grid-template-columns:98px 98px!important;
+    grid-template-rows:86px 92px 82px!important;
+    gap:4px 6px!important;
+  }
+  #game .touch-controls.touch-enabled .touch-action{
+    border-width:2px!important;
+    box-shadow:0 7px 20px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.12)!important;
+  }
+  #game .touch-controls.touch-enabled .jump-action{
+    width:86px!important;height:86px!important;min-width:86px!important;min-height:86px!important;
+    border-width:3px!important;
+  }
+  #game .touch-controls.touch-enabled .jump-action .ui-icon{width:31px!important;height:31px!important}
+  #game .touch-controls.touch-enabled .jump-action small{font-size:10px!important}
+  #game .touch-controls.touch-enabled .sprint-action{
+    grid-area:sprint!important;justify-self:start!important;
+    width:92px!important;height:92px!important;min-width:92px!important;min-height:92px!important;
+    border:3px solid rgba(246,255,227,.96)!important;
+    background:#c8f36a!important;color:#102e2a!important;
+    box-shadow:0 0 0 4px rgba(200,243,106,.2),0 9px 26px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.62)!important;
+  }
+  #game .touch-controls.touch-enabled .sprint-action .ui-icon{width:32px!important;height:32px!important}
+  #game .touch-controls.touch-enabled .sprint-action small{font-size:11px!important}
+  #game .touch-controls.touch-enabled .sit-action{
+    grid-area:sit!important;justify-self:end!important;
+    width:80px!important;height:80px!important;min-width:80px!important;min-height:80px!important;
+    border:2px solid rgba(235,255,240,.65)!important;
+  }
+  #game .touch-controls.touch-enabled .sit-action .ui-icon{width:28px!important;height:28px!important}
+  #game .touch-controls.touch-enabled .sit-action small{font-size:10px!important}
+}
+
+/* High-contrast 600 ms hold ring. The bright arc visibly fills the full circle. */
+#game .touch-controls.touch-enabled .touch-interact-button{
+  border:2px solid rgba(231,255,239,.8)!important;
+  box-shadow:0 0 0 2px rgba(200,243,106,.15),0 8px 22px rgba(0,0,0,.28)!important;
+}
+#game .touch-controls.touch-enabled .touch-interact-button::before{
+  inset:-7px!important;padding:5px!important;border-radius:inherit!important;
+  background:conic-gradient(from -90deg,#ffffff 0%,#c8f36a var(--hold-progress,0%),rgba(200,243,106,.2) var(--hold-progress,0%),rgba(200,243,106,.2) 100%)!important;
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0)!important;
+  -webkit-mask-composite:xor!important;mask-composite:exclude!important;
+  opacity:1!important;filter:drop-shadow(0 0 4px rgba(200,243,106,.72));
+}
+#game .touch-controls.touch-enabled .touch-interact-button.is-holding::before{
+  filter:drop-shadow(0 0 7px rgba(200,243,106,.95));
+}
+#game .touch-controls.touch-enabled .touch-interact-button.hold-complete::before{
+  background:conic-gradient(from -90deg,#ffffff 0%,#c8f36a 100%)!important;
+  filter:drop-shadow(0 0 10px rgba(200,243,106,1));
+}#game .touch-controls.touch-enabled .touch-interact-button.hold-complete::before{
+  background:conic-gradient(from -90deg,#ffffff 0%,#c8f36a 100%)!important;
+  filter:drop-shadow(0 0 10px rgba(200,243,106,1));
+}
+
+/* Persistent level-season currency and badge count. Small, low-cost HUD element. */
+.paw-token-status{display:flex;align-items:center;gap:8px;margin-top:13px;padding:9px 10px;border:1px solid rgba(126,170,130,.23);border-radius:12px;background:rgba(200,243,106,.12);color:inherit}
+.paw-token-mark{display:grid;place-items:center;flex:none;width:26px;height:26px;border-radius:8px;background:#c8f36a;color:#173b31;font-size:16px;font-weight:900}
+.paw-token-status__value{display:grid;gap:3px;min-width:0}
+.paw-token-status small{display:block;font:900 6px/1.1 system-ui,sans-serif;letter-spacing:.11em;color:#809888}
+.paw-token-status strong{display:block;font:900 12px/1 system-ui,sans-serif;color:#315a3d;font-variant-numeric:tabular-nums}
+.paw-token-status__badges{display:grid;justify-items:end;gap:3px;margin-left:auto;padding-left:9px;border-left:1px solid rgba(126,170,130,.23)}
+@media(max-width:900px),(pointer:coarse){.paw-token-status strong{color:#effbf1}.paw-token-status small{color:#bad0c1}}
+@media(max-width:580px){.paw-token-status{margin-top:8px;padding:7px 8px;gap:7px}.paw-token-mark{width:22px;height:22px;font-size:13px}.paw-token-status strong{font-size:10px}.paw-token-status small{font-size:5.5px}}
+

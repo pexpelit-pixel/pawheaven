@@ -1,0 +1,430 @@
+import './styles/main.css';
+import './styles/touch-ff.css';
+import { createScene } from './core/Scene.js';
+import { GameRenderer } from './core/Renderer.js';
+import { detectDefaultQuality } from './core/Quality.js';
+import { Shelter } from './world/Shelter.js';
+import { RobotDog } from './character/RobotDog.js';
+import { PickupInventory } from './character/inventory.js';
+import { PhysicsWorld } from './physics/PhysicsWorld.js';
+import { Input } from './controls/Input.js';
+import { ThirdPersonCamera } from './controls/ThirdPersonCamera.js';
+import { Movement } from './systems/Movement.js';
+import { PerformanceMonitor } from './systems/Performance.js';
+import { LevelSystem } from './systems/LevelSystem.js';
+import { HUD } from './ui/HUD.js';
+import { LoadingScreen } from './ui/LoadingScreen.js';
+import { applyTranslations, t } from './core/Localization.js';
+
+applyTranslations();
+
+const FIXED_DT = 1 / 60;
+const MAX_STEPS = 5;
+const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+
+class RoboticDogGame {
+  constructor() {
+    this.canvas = document.getElementById('game-canvas');
+    this.loading = new LoadingScreen();
+    this.renderer = null;
+    this.shelter = null;
+    this.dog = null;
+    this.physics = null;
+    this.input = null;
+    this.cameraRig = null;
+    this.movement = null;
+    this.running = false;
+    this.levelTransitionFrozen = false;
+    this.inventory = null;
+    this.accumulator = 0;
+    this.lastTime = 0;
+    this.frameId = 0;
+    this.hudUpdateElapsed = 0;
+    this.previousRenderPosition = { x: 0, y: 0, z: 0 };
+    this.currentRenderPosition = { x: 0, y: 0, z: 0 };
+    this.previousRenderYaw = 0;
+    this.currentRenderYaw = 0;
+    this.onLocaleChange = () => {
+      const birthdayToggle = document.getElementById('birthday-theme-toggle');
+      if (!birthdayToggle) return;
+      const enabled = birthdayToggle.getAttribute('aria-pressed') === 'true';
+      birthdayToggle.textContent = t(enabled ? 'state.on' : 'state.off');
+      birthdayToggle.setAttribute('aria-label', t(enabled ? 'settings.disableBirthdayTheme' : 'settings.enableBirthdayTheme'));
+    };
+    document.addEventListener('paw-haven-locale-change', this.onLocaleChange);
+    this.resizeHandler = () => {
+      // Ignore viewport churn while the opaque settings sheet is being scrolled.
+      // Closing settings performs one authoritative resize before the render loop resumes.
+      if (this.hud?.settings && !this.hud.settings.hidden) return;
+      this.renderer?.resize();
+    };
+  }
+
+  async initialize() {
+    this.loading.set(0.04, t('loading.playSpace.title'), t('loading.playSpace.message'));
+    await nextFrame();
+    if (!('WebGL2RenderingContext' in window)) throw new Error(t('error.webgl2'));
+
+    this.loading.set(0.1, t('loading.openDoors.title'), t('loading.openDoors.message'));
+    await nextFrame();
+    const { scene, camera } = createScene();
+    this.scene = scene;
+    this.camera = camera;
+    this.renderer = new GameRenderer(this.canvas, scene, camera);
+    // Select quality after world and character creation so Low can convert every scene mesh once.
+    await nextFrame();
+
+    this.shelter = new Shelter(scene);
+    const solids = await this.shelter.build(async (progress, message) => {
+      this.loading.set(0.16 + progress * 0.54, t('loading.prepare.title'), message);
+      await nextFrame();
+    });
+    await nextFrame();
+
+    this.dog = new RobotDog(scene);
+    await this.renderer.setQuality(this.getSavedQuality());
+    this.loading.set(0.75, t('loading.startDog.title'), t('loading.startDog.message'));
+    await nextFrame();
+    this.physics = await PhysicsWorld.create(solids);
+    // Explicitly align Rapier's torso body with the rendered spawn root. PhysicsWorld positions
+    // the body 0.78 m above the ground-level dog root, so preserve that offset here too.
+    this.physics.setPosition({
+      x: this.dog.group.position.x,
+      y: this.dog.group.position.y + 0.78,
+      z: this.dog.group.position.z
+    });
+    this.loading.set(0.84, t('loading.checkFloor.title'), t('loading.checkFloor.message'));
+    await nextFrame();
+
+    this.cameraRig = new ThirdPersonCamera(camera, this.shelter.root);
+    this.input = new Input(this.canvas, this.cameraRig);
+    this.movement = new Movement(this.physics, this.dog, this.input, this.cameraRig);
+    this.hud = new HUD((quality) => {
+      this.performance?.resetAdaptiveScale();
+      this.renderer.setQuality(quality).then(() => {
+        // A quality change can resize the drawing buffer; redraw one static preview
+        // while settings are open without restarting continuous scene rendering.
+        if (this.hud?.settings && !this.hud.settings.hidden) this.renderer.render();
+      }).catch((error) => console.error('Failed to change quality profile:', error));
+      try { localStorage.setItem('little-rover-quality', quality); } catch { /* Private browsing can disable storage. */ }
+    }, this.cameraRig, (settingsOpen) => {
+      if (settingsOpen) {
+        if (this.frameId) cancelAnimationFrame(this.frameId);
+        this.frameId = 0;
+        this.accumulator = 0;
+        return;
+      }
+
+      this.accumulator = 0;
+      this.renderer?.resize();
+      this.lastTime = performance.now();
+      this.resetRenderPositionSnapshots();
+      if (this.running && !document.hidden && !this.frameId) {
+        this.frameId = requestAnimationFrame(this.loop);
+      }
+    }, this.input);
+    this.inventory = new PickupInventory(this.scene, this.dog, this.input, this.hud, this.physics, this.shelter);
+    this.levelSystem = new LevelSystem(this, this.scene, this.shelter);
+    this.hud.setQuality(this.renderer.quality);
+    this.performance = new PerformanceMonitor(
+      (fps) => this.hud.setFPS(fps),
+      (scale) => this.renderer.setAdaptiveScale(scale)
+    );
+    this.bindLifetimeHandlers();
+    this.loading.set(0.95, t('loading.ready.title'), t('loading.ready.message'));
+    await nextFrame();
+    this.cameraRig.update(1 / 60, this.dog.group.position);
+    this.resetRenderPositionSnapshots();
+    this.renderer.render();
+    this.loading.finish();
+    this.running = true;
+    this.lastTime = performance.now();
+    this.frameId = requestAnimationFrame(this.loop);
+  }
+
+  setLevelTransitionFrozen(frozen) {
+    const next = Boolean(frozen);
+    if (next === this.levelTransitionFrozen) return;
+    this.levelTransitionFrozen = next;
+    this.accumulator = 0;
+    this.lastTime = performance.now();
+    this.resetRenderPositionSnapshots();
+
+    // Freeze gameplay simulation, not the display loop. Keeping RAF alive lets
+    // the black portal curtain and WebGL canvas continue compositing smoothly.
+    if (this.running && !document.hidden
+      && !(this.hud?.settings && !this.hud.settings.hidden)
+      && !this.frameId) {
+      this.frameId = requestAnimationFrame(this.loop);
+    }
+  }
+
+  resetRenderPositionSnapshots() {
+    const position = this.dog?.group.position;
+    if (!position) return;
+    this.previousRenderPosition.x = this.currentRenderPosition.x = position.x;
+    this.previousRenderPosition.y = this.currentRenderPosition.y = position.y;
+    this.previousRenderPosition.z = this.currentRenderPosition.z = position.z;
+    this.previousRenderYaw = this.currentRenderYaw = this.dog.group.rotation.y;
+  }
+
+  getSavedQuality() {
+    try {
+      const saved = localStorage.getItem('little-rover-quality');
+      return ['low', 'medium', 'high'].includes(saved) ? saved : detectDefaultQuality();
+    } catch { return detectDefaultQuality(); }
+  }
+
+  bindLifetimeHandlers() {
+    const birthdayToggle = document.getElementById('birthday-theme-toggle');
+    birthdayToggle?.addEventListener('click', () => {
+      const enabled = this.renderer.setBirthdayTheme(birthdayToggle.getAttribute('aria-pressed') !== 'true');
+      birthdayToggle.setAttribute('aria-pressed', String(enabled));
+      birthdayToggle.textContent = t(enabled ? 'state.on' : 'state.off');
+      birthdayToggle.setAttribute('aria-label', t(enabled ? 'settings.disableBirthdayTheme' : 'settings.enableBirthdayTheme'));
+      document.getElementById('game')?.classList.toggle('birthday-preview-active', enabled);
+    });
+    window.addEventListener('resize', this.resizeHandler, { passive: true });
+    this.visibilityHandler = () => {
+      if (document.hidden || !this.running
+        || (this.hud?.settings && !this.hud.settings.hidden) || this.frameId) return;
+      this.lastTime = performance.now();
+      this.resetRenderPositionSnapshots();
+      this.frameId = requestAnimationFrame(this.loop);
+    };
+    document.addEventListener('visibilitychange', this.visibilityHandler);
+
+    window.addEventListener('pagehide', () => this.stop(), { once: true });
+    document.getElementById('retry-button')?.addEventListener('click', async () => {
+      const button = document.getElementById('retry-button');
+      if (button?.disabled) return;
+      if (button) { button.disabled = true; button.textContent = t('loading.retrying'); }
+      try {
+        this.stop();
+        this.scene?.clear();
+        this.loading.root.classList.remove('is-done');
+        document.getElementById('error-screen').hidden = true;
+        this.loading.value = 0;
+        this.loading.set(0, t('loading.retry.title'), t('loading.retry.message'));
+        await this.initialize();
+      } catch (error) {
+        console.error('Paw Haven retry failed:', error);
+        this.loading.fail(error instanceof Error ? error : new Error(String(error)));
+      } finally {
+        if (button) { button.disabled = false; button.textContent = t('loading.tryAgain'); }
+      }
+    });
+  }
+
+  loop = (timestamp) => {
+    if (!this.running) { this.frameId = 0; return; }
+    const frameDelta = Math.max(0, (timestamp - this.lastTime) / 1000);
+    const rawDelta = Math.min(0.1, frameDelta);
+    this.lastTime = timestamp;
+
+    // The opaque settings sheet is a UI-only state. Stop stepping physics and issuing
+    // WebGL draws behind it so scroll/compositing remains responsive on mobile GPUs.
+    if (!document.hidden && this.hud?.settings && !this.hud.settings.hidden) {
+      this.accumulator = 0;
+      this.frameId = 0;
+      return;
+    }
+
+    // During a portal transition, hold the exact gameplay pose and physics state
+    // while still drawing every display frame. CSS fade and scene compositing stay live.
+    if (this.levelTransitionFrozen) {
+      this.accumulator = 0;
+      if (document.hidden) {
+        this.frameId = 0;
+        return;
+      }
+      this.renderer?.render();
+      this.frameId = requestAnimationFrame(this.loop);
+      return;
+    }
+
+    if (!document.hidden) {
+      this.accumulator = Math.min(this.accumulator + rawDelta, FIXED_DT * MAX_STEPS);
+      let steps = 0;
+      while (this.accumulator >= FIXED_DT && steps < MAX_STEPS && !this.levelTransitionFrozen) {
+        this.previousRenderPosition.x = this.currentRenderPosition.x;
+        this.previousRenderPosition.y = this.currentRenderPosition.y;
+        this.previousRenderPosition.z = this.currentRenderPosition.z;
+        this.previousRenderYaw = this.currentRenderYaw;
+        this.levelSystem?.preparePhysics(FIXED_DT);
+        this.movement.update(FIXED_DT);
+        this.levelSystem?.update(FIXED_DT);
+        // A portal transition can begin inside LevelSystem.update(). Do not run
+        // inventory or shelter simulation after that frame has requested a freeze.
+        if (this.levelTransitionFrozen) break;
+        this.inventory?.update(FIXED_DT);
+        // Keep the gift plate inactive until all five unique level relics are in inventory.
+        if (!this.levelSystem?.activeLevel && this.dog?.levelGiftTriggerActivated === true) {
+          this.shelter?.updateRoomInteractions(FIXED_DT, this.dog, this.physics);
+        }
+        const simulatedPosition = this.dog.group.position;
+        this.currentRenderPosition.x = simulatedPosition.x;
+        this.currentRenderPosition.y = simulatedPosition.y;
+        this.currentRenderPosition.z = simulatedPosition.z;
+        this.currentRenderYaw = this.dog.group.rotation.y;
+        this.accumulator -= FIXED_DT;
+        steps += 1;
+      }
+
+      if (this.levelTransitionFrozen) {
+        this.accumulator = 0;
+        this.resetRenderPositionSnapshots();
+        this.renderer?.render();
+        this.frameId = requestAnimationFrame(this.loop);
+        return;
+      }
+
+      // Interpolate between stable 60 Hz physics poses for high-refresh displays.
+      // The Rapier body remains authoritative; only the rendered dog root is interpolated.
+      const dogPosition = this.dog.group.position;
+      const alpha = Math.min(1, Math.max(0, this.accumulator / FIXED_DT));
+      dogPosition.set(
+        this.previousRenderPosition.x + (this.currentRenderPosition.x - this.previousRenderPosition.x) * alpha,
+        this.previousRenderPosition.y + (this.currentRenderPosition.y - this.previousRenderPosition.y) * alpha,
+        this.previousRenderPosition.z + (this.currentRenderPosition.z - this.previousRenderPosition.z) * alpha
+      );
+      const yawDelta = Math.atan2(
+        Math.sin(this.currentRenderYaw - this.previousRenderYaw),
+        Math.cos(this.currentRenderYaw - this.previousRenderYaw)
+      );
+      this.dog.group.rotation.y = this.previousRenderYaw + yawDelta * alpha;
+      this.levelSystem?.interpolateBoards(alpha);
+      this.cameraRig.update(rawDelta || FIXED_DT, dogPosition);
+      this.hudUpdateElapsed += rawDelta;
+      if (this.hudUpdateElapsed >= 0.12) {
+        this.hud.setActivity(this.dog.state, this.dog.speed);
+        this.hudUpdateElapsed = 0;
+      }
+      // Count actual display-frame time, not the fixed physics step, or FPS is capped at 60 in telemetry.
+      this.performance.update(frameDelta);
+      this.renderer.render();
+
+      // Restore the authoritative simulated position after drawing the interpolated pose.
+      dogPosition.set(
+        this.currentRenderPosition.x,
+        this.currentRenderPosition.y,
+        this.currentRenderPosition.z
+      );
+      this.dog.group.rotation.y = this.currentRenderYaw;
+    }
+    if (!this.levelTransitionFrozen) this.frameId = requestAnimationFrame(this.loop);
+  };
+
+  stop() {
+    this.running = false;
+    this.levelTransitionFrozen = false;
+    document.removeEventListener('visibilitychange', this.visibilityHandler);
+    if (this.frameId) cancelAnimationFrame(this.frameId);
+    window.removeEventListener('resize', this.resizeHandler);
+    this.levelSystem?.dispose();
+    this.levelSystem = null;
+    this.inventory?.dispose();
+    this.hud?.dispose();
+    this.input?.dispose();
+    this.dog?.dispose();
+    this.shelter?.dispose();
+    this.physics?.dispose();
+    this.renderer?.dispose();
+    this.hud = null;
+    this.input = null;
+    this.dog = null;
+    this.shelter = null;
+    this.physics = null;
+    this.renderer = null;
+    this.cameraRig = null;
+    this.movement = null;
+    this.performance = null;
+    this.inventory = null;
+  }
+}
+
+const game = new RoboticDogGame();
+game.initialize().catch((error) => {
+  console.error('Paw Haven failed to initialize:', error);
+  game.loading.fail(error instanceof Error ? error : new Error(String(error)));
+});
+
+if (import.meta.env.DEV) {
+  window.__RDS_DEBUG = {
+    finishStatus() {
+      const levels = game.levelSystem;
+      const level = levels?.activeLevel;
+      const plate = levels?.activeArena?.userData?.finishPressurePlate;
+      if (!level || !plate) {
+        return { active: false, message: 'Masuk ke sebuah Level terlebih dahulu.' };
+      }
+      const dog = game.dog;
+      const position = dog?.group?.position;
+      const data = plate.userData || {};
+      const status = {
+        active: true,
+        level: level.id,
+        position: position ? { x: Number(position.x.toFixed(3)), y: Number(position.y.toFixed(3)), z: Number(position.z.toFixed(3)) } : null,
+        finishPoint: data.finishPoint,
+        pressed: data.pressed === true,
+        ready: data.ready === true,
+        inside: data.inside === true,
+        grounded: data.grounded === true,
+        heightDelta: Number.isFinite(data.heightDelta) ? Number(data.heightDelta.toFixed(3)) : null,
+        blockReason: data.blockReason || null,
+        checkpoints: levels.checkpointIndex + '/' + levels.checkpointGroups.length,
+        mechanicComplete: levels.special ? levels.special.completed === true : null,
+        pendingActivation: data.pendingActivation === true,
+        pressElapsed: Number(data.pressElapsed || 0).toFixed(3)
+      };
+      console.table(status);
+      return status;
+    },
+    teleportFinish() {
+      const levels = game.levelSystem;
+      const level = levels?.activeLevel;
+      const finishPlate = levels?.activeArena?.userData?.finishPressurePlate;
+      const point = finishPlate?.userData?.finishPoint;
+
+      if (!level || !finishPlate || !point) {
+        console.warn('[RDS] Masuk ke salah satu Level 1-5 terlebih dahulu.');
+        return false;
+      }
+
+      // This helper bypasses objectives only for finish-transition diagnostics.
+      levels.checkpointIndex = levels.checkpointGroups.length;
+      levels.checkpointGroups.forEach((marker) => { marker.visible = false; });
+      if (levels.questObject) levels.questObject.visible = true;
+
+      const special = levels.special;
+      if (special) {
+        special.completed = true;
+        if (special.targetRing) special.targetRing.visible = false;
+        if (special.type === 'catapult') {
+          special.barrier.visible = false;
+          special.bridge.visible = true;
+          const barrierRecord = levels.activePhysics?.dynamicPropsById?.get(special.barrierId);
+          for (const collider of barrierRecord?.body?.colliders?.() || []) {
+            collider.setEnabled(false);
+          }
+        }
+        if (special.type === 'braidel-ball') special.rallies = 3;
+      }
+
+      finishPlate.userData.pendingActivation = false;
+      finishPlate.userData.pressElapsed = 0;
+      levels.finishTriggerLatched = false;
+
+      const target = { x: point.x, y: point.y, z: point.z };
+      levels.moveDogTo(target, levels.activePhysics);
+      game.resetRenderPositionSnapshots?.();
+
+      console.info('[RDS] Finish diagnostic armed for Level ' + level.id + ':', target);
+      return true;
+    }
+  };
+}
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unexpected game error:', event.reason);
+});

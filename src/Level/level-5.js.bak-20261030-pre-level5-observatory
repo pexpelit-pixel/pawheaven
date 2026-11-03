@@ -1,0 +1,14 @@
+import { LEVEL_ENTRY_PORTALS } from '../world/LevelAnchors.js';
+
+export const level5 = {
+  id: 5, name: 'Braidel Ball Rally', token: 'quest:v3:level-5', mechanic: 'braidel-ball',
+  checkpointLabel: 'Rally Beacon',
+  finishTrigger: Object.freeze({ x: 0, z: 8.2, rx: 1.25, rz: 0.90 }),
+  finishRequirements: Object.freeze({ checkpoints: true, mechanic: true }),
+  color: '#4e829d', bright: '#94e9e7', trigger: LEVEL_ENTRY_PORTALS[4].trigger, itemX: 0,
+  mechanicIntro: 'Misi: tantang Braidel dalam reli bola. Pukul bola tiga kali sampai ke sisi lawan, aktifkan tiga Rally Beacon, lalu ambil Relik Neon.',
+  reward: { pawTokens: 350, badge: 'Rally Champion', unlock: 'Bounce Ball Trail' },
+  obstacles: [[-4,-4,2.0,0.24,1.6,'#477c92'],[3,-2,1.6,0.55,1.0,'#53b6b5'],[5,0.4,1.0,0.85,1.0,'#477c92'],[3,2.8,2.8,0.28,0.6,'#53b6b5'],[-4,5.0,1.0,0.5,1.0,'#477c92']]
+};
+
+export const puzzleSequence5 = [[-2.5,1.5],[2,4.8],[0,7.1]];

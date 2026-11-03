@@ -1,0 +1,228 @@
+{
+  "project": "Robotic Dog Shelter - Gift Birthday Greeting voice-over",
+  "generated_at_utc": "2026-11-03T02:43:37.635322Z",
+  "engine": "z-ai TTS (GLM voice presets) + ffmpeg post-processing",
+  "audio_settings": {
+    "format": "WAV",
+    "codec": "PCM_S16LE",
+    "sample_rate_hz": 48000,
+    "bit_depth": 16,
+    "channels": 1
+  },
+  "voice_cast_note": "Six distinct female anime-style voice identities. Memory Angel appears twice (slide 4 and slide 5) and uses the identical voice identity for both appearances, per spec.",
+  "total_wav_files": 7,
+  "total_failures": 0,
+  "voices": [
+    {
+      "id": "N7qP4xK2",
+      "angel_name": "Shelter Angel",
+      "role": "The Gentle Heart",
+      "slide_number": 1,
+      "source_dialogue_key": "giftGreeting.slide1.message",
+      "wav_filename": "N7qP4xK2-shelter-angel.wav",
+      "generation_status": "success",
+      "voice_identity": {
+        "voice_identity_key": "shelter-angel",
+        "engine_voice_preset": "tongtong",
+        "tts_speed": 0.95,
+        "pitch_shift_semitones": 0.0,
+        "female_voice": true,
+        "character_direction": "Warm, gentle, reassuring anime-style delivery. Speak with sincere affection and calm confidence. Natural pacing, soft em"
+      },
+      "audio_metadata": {
+        "format": "WAV",
+        "codec": "PCM_S16LE",
+        "sample_rate_hz": 48000,
+        "bit_depth": 16,
+        "channels": 1,
+        "duration_seconds": 21.962,
+        "file_size_bytes": 2108394,
+        "loudness_target_lufs": -16,
+        "true_peak_dbtp": -1.5,
+        "md5": "fdd17d4443c8900b503c95ab7c1ebc0b"
+      },
+      "spoken_text_chars": 266
+    },
+    {
+      "id": "v5Kp9N3a",
+      "angel_name": "Azure Angel",
+      "role": "Keeper of Hope",
+      "slide_number": 2,
+      "source_dialogue_key": "giftGreeting.slide2.message (first paragraph)",
+      "wav_filename": "v5Kp9N3a-azure-angel.wav",
+      "generation_status": "success",
+      "voice_identity": {
+        "voice_identity_key": "azure-angel",
+        "engine_voice_preset": "luodo",
+        "tts_speed": 1.0,
+        "pitch_shift_semitones": 2.0,
+        "female_voice": true,
+        "character_direction": "Hopeful, clear, composed anime-style voice. Gentle optimism with a steady pace. Let the final sentence feel encouraging,"
+      },
+      "audio_metadata": {
+        "format": "WAV",
+        "codec": "PCM_S16LE",
+        "sample_rate_hz": 48000,
+        "bit_depth": 16,
+        "channels": 1,
+        "duration_seconds": 13.396,
+        "file_size_bytes": 1286046,
+        "loudness_target_lufs": -16,
+        "true_peak_dbtp": -1.5,
+        "md5": "a662cebf6aa3e5a64038b5e177e2e6c4"
+      },
+      "spoken_text_chars": 103
+    },
+    {
+      "id": "J3cT7aQ8",
+      "angel_name": "Fern Angel",
+      "role": "The Wise Companion",
+      "slide_number": 2,
+      "source_dialogue_key": "giftGreeting.slide2.message (second paragraph)",
+      "wav_filename": "J3cT7aQ8-fern-angel.wav",
+      "generation_status": "success",
+      "voice_identity": {
+        "voice_identity_key": "fern-angel",
+        "engine_voice_preset": "kazi",
+        "tts_speed": 0.88,
+        "pitch_shift_semitones": -3.0,
+        "female_voice": true,
+        "character_direction": "Thoughtful, tender, mature anime-style voice. Calm and intimate delivery, with a caring tone. Keep the wording conversat"
+      },
+      "audio_metadata": {
+        "format": "WAV",
+        "codec": "PCM_S16LE",
+        "sample_rate_hz": 48000,
+        "bit_depth": 16,
+        "channels": 1,
+        "duration_seconds": 19.107,
+        "file_size_bytes": 1834376,
+        "loudness_target_lufs": -16,
+        "true_peak_dbtp": -1.5,
+        "md5": "beded48f08a9adae6c3d1e7634baeeda"
+      },
+      "spoken_text_chars": 146
+    },
+    {
+      "id": "H6wD2qR9",
+      "angel_name": "Ember Angel",
+      "role": "Bearer of Courage",
+      "slide_number": 3,
+      "source_dialogue_key": "giftGreeting.slide3.message (first paragraph)",
+      "wav_filename": "H6wD2qR9-ember-angel.wav",
+      "generation_status": "success",
+      "voice_identity": {
+        "voice_identity_key": "ember-angel",
+        "engine_voice_preset": "chuichui",
+        "tts_speed": 1.12,
+        "pitch_shift_semitones": 1.0,
+        "female_voice": true,
+        "character_direction": "Bright, brave, determined anime-style voice. Deliver the line with warmth and quiet strength. Give 'begin again' a hopef"
+      },
+      "audio_metadata": {
+        "format": "WAV",
+        "codec": "PCM_S16LE",
+        "sample_rate_hz": 48000,
+        "bit_depth": 16,
+        "channels": 1,
+        "duration_seconds": 5.375,
+        "file_size_bytes": 516040,
+        "loudness_target_lufs": -16,
+        "true_peak_dbtp": -1.5,
+        "md5": "e3f4003c8fa06996ecba1851dd1e7d14"
+      },
+      "spoken_text_chars": 93
+    },
+    {
+      "id": "P9fL4sM6",
+      "angel_name": "Vesper Angel",
+      "role": "Bringer of Joy",
+      "slide_number": 3,
+      "source_dialogue_key": "giftGreeting.slide3.message (second paragraph)",
+      "wav_filename": "P9fL4sM6-vesper-angel.wav",
+      "generation_status": "success",
+      "voice_identity": {
+        "voice_identity_key": "vesper-angel",
+        "engine_voice_preset": "jam",
+        "tts_speed": 1.05,
+        "pitch_shift_semitones": 0.0,
+        "female_voice": true,
+        "character_direction": "Cheerful, bright, playful anime-style voice. Smile gently through the delivery. Keep it sincere and sweet rather than ex"
+      },
+      "audio_metadata": {
+        "format": "WAV",
+        "codec": "PCM_S16LE",
+        "sample_rate_hz": 48000,
+        "bit_depth": 16,
+        "channels": 1,
+        "duration_seconds": 7.509,
+        "file_size_bytes": 720982,
+        "loudness_target_lufs": -16,
+        "true_peak_dbtp": -1.5,
+        "md5": "db24c8e18a617b58cd2f38e6b29de7b2"
+      },
+      "spoken_text_chars": 97
+    },
+    {
+      "id": "x2N7bK5c",
+      "angel_name": "Memory Angel",
+      "role": "Finder of Memories",
+      "slide_number": 4,
+      "source_dialogue_key": "giftGreeting.slide4.message",
+      "wav_filename": "x2N7bK5c-memory-angel.wav",
+      "generation_status": "success",
+      "voice_identity": {
+        "voice_identity_key": "memory-angel",
+        "engine_voice_preset": "douji",
+        "tts_speed": 1.02,
+        "pitch_shift_semitones": 1.0,
+        "female_voice": true,
+        "character_direction": "Curious, affectionate, lively anime-style voice. Start with a little excited surprise, then soften into warm nostalgia a"
+      },
+      "audio_metadata": {
+        "format": "WAV",
+        "codec": "PCM_S16LE",
+        "sample_rate_hz": 48000,
+        "bit_depth": 16,
+        "channels": 1,
+        "duration_seconds": 28.125,
+        "file_size_bytes": 2700108,
+        "loudness_target_lufs": -16,
+        "true_peak_dbtp": -1.5,
+        "md5": "9b81404b6565332e793758e81a721e60"
+      },
+      "spoken_text_chars": 351
+    },
+    {
+      "id": "wdhL3v1m",
+      "angel_name": "Memory Angel",
+      "role": "A Little Letter for You",
+      "slide_number": 5,
+      "source_dialogue_key": "giftGreeting.developerIntro.message",
+      "wav_filename": "wdhL3v1m-memory-angel-second-appearance.wav",
+      "generation_status": "success",
+      "voice_identity": {
+        "voice_identity_key": "memory-angel",
+        "engine_voice_preset": "douji",
+        "tts_speed": 1.02,
+        "pitch_shift_semitones": 1.0,
+        "female_voice": true,
+        "character_direction": "Use exactly the same anime-style voice as Memory Angel in slide 04. Begin with a playful, gently excited interruption, t"
+      },
+      "audio_metadata": {
+        "format": "WAV",
+        "codec": "PCM_S16LE",
+        "sample_rate_hz": 48000,
+        "bit_depth": 16,
+        "channels": 1,
+        "duration_seconds": 16.884,
+        "file_size_bytes": 1620930,
+        "loudness_target_lufs": -16,
+        "true_peak_dbtp": -1.5,
+        "md5": "639fb45599779eeae55cea50d01ffc64"
+      },
+      "spoken_text_chars": 224
+    }
+  ],
+  "failures": []
+}

@@ -1,0 +1,303 @@
+{
+  "schemaVersion": 1,
+  "units": {
+    "mass": "kg",
+    "distance": "m",
+    "force": "N"
+  },
+  "capacity": {
+    "slots": 12,
+    "maxPickupMassKg": 1.2,
+    "maxMouthCarryMassKg": 1.2,
+    "maxInventoryItemMassKg": 1.2,
+    "maxInventoryMassKg": 4.0
+  },
+  "defaults": {
+    "pickup": false,
+    "physics": {
+      "enabled": true,
+      "massKg": 1.0,
+      "friction": 0.65,
+      "restitution": 0.05,
+      "linearDamping": 0.5,
+      "angularDamping": 1.0,
+      "gravityScale": 1.0,
+      "ccdEnabled": true,
+      "canSleep": true,
+      "kickFactor": 0.32,
+      "maxImpulse": 4.2
+    },
+    "interaction": {
+      "range": 1.85,
+      "radius": 0.65,
+      "height": 1.0
+    },
+    "presentation": {
+      "heldScale": 0.72
+    }
+  },
+  "objects": {
+    "ball": {
+      "name": "Rubber ball",
+      "icon": "🟠",
+      "color": "#ff765f",
+      "metalness": 0.05,
+      "pickup": true,
+      "physics": {
+        "massKg": 0.24,
+        "friction": 0.42,
+        "restitution": 0.16,
+        "linearDamping": 0.16,
+        "angularDamping": 0.34,
+        "kickFactor": 0.15,
+        "maxImpulse": 0.55,
+        "collider": {
+          "shape": "ball",
+          "radius": 0.145,
+          "offset": [0, 0.035, 0]
+        }
+      },
+      "interaction": { "radius": 0.42, "height": 0.65 },
+      "presentation": { "heldScale": 0.76 }
+    },
+    "bone": {
+      "name": "Chew bone",
+      "icon": "🦴",
+      "color": "#f3dfb3",
+      "metalness": 0.02,
+      "pickup": true,
+      "physics": {
+        "massKg": 0.22,
+        "friction": 0.62,
+        "restitution": 0.035,
+        "linearDamping": 0.62,
+        "angularDamping": 1.15,
+        "kickFactor": 0.11,
+        "maxImpulse": 0.34,
+        "collider": {
+          "shape": "cuboid",
+          "halfExtents": [0.17, 0.073, 0.073],
+          "offset": [0, 0.025, 0]
+        }
+      },
+      "interaction": { "radius": 0.42, "height": 0.65 },
+      "presentation": { "heldScale": 0.76 }
+    },
+    "cube": {
+      "name": "Puzzle block",
+      "icon": "🧊",
+      "color": "#72d2d1",
+      "metalness": 0.08,
+      "pickup": true,
+      "physics": {
+        "massKg": 0.36,
+        "friction": 0.72,
+        "restitution": 0.025,
+        "linearDamping": 0.72,
+        "angularDamping": 1.2,
+        "kickFactor": 0.11,
+        "maxImpulse": 0.34,
+        "collider": {
+          "shape": "roundCuboid",
+          "halfExtents": [0.105, 0.09, 0.105],
+          "roundRadius": 0.02,
+          "offset": [0, 0.02, 0]
+        }
+      },
+      "interaction": { "radius": 0.42, "height": 0.65 },
+      "presentation": { "heldScale": 0.76 }
+    },
+    "gear": {
+      "name": "Spare gear",
+      "icon": "⚙️",
+      "color": "#e9c56f",
+      "metalness": 0.62,
+      "pickup": true,
+      "physics": {
+        "massKg": 0.28,
+        "friction": 0.65,
+        "restitution": 0.025,
+        "linearDamping": 0.68,
+        "angularDamping": 1.1,
+        "kickFactor": 0.11,
+        "maxImpulse": 0.34,
+        "collider": {
+          "shape": "cylinder",
+          "radius": 0.15,
+          "halfHeight": 0.03,
+          "offset": [0, 0.02, 0]
+        }
+      },
+      "interaction": { "radius": 0.42, "height": 0.65 },
+      "presentation": { "heldScale": 0.76 }
+    },
+    "plush": {
+      "name": "Plush star",
+      "icon": "⭐",
+      "color": "#c79bff",
+      "metalness": 0.02,
+      "pickup": true,
+      "physics": {
+        "massKg": 0.16,
+        "friction": 0.88,
+        "restitution": 0.015,
+        "linearDamping": 1.15,
+        "angularDamping": 1.65,
+        "kickFactor": 0.11,
+        "maxImpulse": 0.34,
+        "collider": {
+          "shape": "ball",
+          "radius": 0.16,
+          "offset": [0, 0.012, 0]
+        }
+      },
+      "interaction": { "radius": 0.42, "height": 0.65 },
+      "presentation": { "heldScale": 0.76 }
+    },
+    "doghouse": {
+      "name": "Doghouse",
+      "icon": "🏠",
+      "pickup": true,
+      "physics": {
+        "massKg": 18.0,
+        "friction": 0.82,
+        "restitution": 0.02,
+        "linearDamping": 0.85,
+        "angularDamping": 2.4,
+        "gravityScale": 1.0,
+        "ccdEnabled": false,
+        "kickFactor": 0.24,
+        "maxImpulse": 5.2,
+        "spawnLift": 0.0475
+      },
+      "interaction": { "radius": 1.4, "height": 1.5 },
+      "presentation": { "heldScale": 0.42 }
+    },
+    "dog-bed": {
+      "name": "Dog bed",
+      "icon": "🛏️",
+      "pickup": true,
+      "physics": {
+        "massKg": 7.5,
+        "friction": 0.86,
+        "restitution": 0.015,
+        "linearDamping": 0.9,
+        "angularDamping": 2.2,
+        "gravityScale": 1.0,
+        "ccdEnabled": false,
+        "kickFactor": 0.24,
+        "maxImpulse": 4.8,
+        "spawnLift": 0.0775
+      },
+      "interaction": { "radius": 1.22, "height": 0.85 },
+      "presentation": { "heldScale": 0.45 }
+    },
+    "water-bowl": {
+      "name": "Water bowl",
+      "icon": "🥣",
+      "pickup": true,
+      "physics": {
+        "massKg": 0.85,
+        "friction": 0.48,
+        "restitution": 0.07,
+        "linearDamping": 0.38,
+        "angularDamping": 0.72,
+        "gravityScale": 1.0,
+        "ccdEnabled": true,
+        "kickFactor": 0.34,
+        "maxImpulse": 2.5,
+        "spawnLift": 0.0275
+      },
+      "interaction": { "radius": 0.62, "height": 0.7 },
+      "presentation": { "heldScale": 0.68 }
+    },
+    "toy-ball": {
+      "name": "Play ball",
+      "icon": "🔴",
+      "pickup": true,
+      "physics": {
+        "massKg": 0.24,
+        "friction": 0.42,
+        "restitution": 0.22,
+        "linearDamping": 0.24,
+        "angularDamping": 0.42,
+        "gravityScale": 1.0,
+        "ccdEnabled": true,
+        "kickFactor": 0.38,
+        "maxImpulse": 1.8,
+        "spawnLift": 0.0675
+      },
+      "interaction": { "radius": 0.52, "height": 0.65 },
+      "presentation": { "heldScale": 0.7 }
+    },
+    "toy-ring": {
+      "name": "Toy ring",
+      "icon": "⭕",
+      "pickup": true,
+      "physics": {
+        "massKg": 0.34,
+        "friction": 0.56,
+        "restitution": 0.12,
+        "linearDamping": 0.36,
+        "angularDamping": 0.64,
+        "gravityScale": 1.0,
+        "ccdEnabled": true,
+        "kickFactor": 0.38,
+        "maxImpulse": 2.2,
+        "spawnLift": 0.0755
+      },
+      "interaction": { "radius": 0.62, "height": 0.75 },
+      "presentation": { "heldScale": 0.64 }
+    },
+    "toy-rope": {
+      "name": "Rope toy",
+      "icon": "🪢",
+      "pickup": true,
+      "physics": {
+        "massKg": 0.42,
+        "friction": 0.72,
+        "restitution": 0.045,
+        "linearDamping": 0.72,
+        "angularDamping": 1.5,
+        "gravityScale": 1.0,
+        "ccdEnabled": true,
+        "kickFactor": 0.38,
+        "maxImpulse": 2.4,
+        "spawnLift": 0.0575
+      },
+      "interaction": { "radius": 0.65, "height": 0.65 },
+      "presentation": { "heldScale": 0.64 }
+    }
+  },
+  "entities": {
+    "pickup-ball": { "type": "ball", "pickup": true },
+    "pickup-bone": { "type": "bone", "pickup": true },
+    "pickup-cube": { "type": "cube", "pickup": true },
+    "pickup-gear": { "type": "gear", "pickup": true },
+    "pickup-plush": { "type": "plush", "pickup": true },
+    "doghouse-1": { "type": "doghouse", "pickup": true },
+    "doghouse-2": { "type": "doghouse", "pickup": true },
+    "doghouse-3": { "type": "doghouse", "pickup": true },
+    "doghouse-4": { "type": "doghouse", "pickup": true },
+    "dog-bed-1": { "type": "dog-bed", "pickup": true },
+    "dog-bed-2": { "type": "dog-bed", "pickup": true },
+    "dog-bed-3": { "type": "dog-bed", "pickup": true },
+    "water-bowl-1": { "type": "water-bowl", "pickup": true },
+    "water-bowl-2": { "type": "water-bowl", "pickup": true },
+    "water-bowl-3": { "type": "water-bowl", "pickup": true },
+    "water-bowl-4": { "type": "water-bowl", "pickup": true },
+    "toy-ball-1": { "type": "toy-ball", "pickup": true },
+    "toy-ball-2": { "type": "toy-ball", "pickup": true },
+    "toy-ring-1": { "type": "toy-ring", "pickup": true },
+    "toy-ring-2": { "type": "toy-ring", "pickup": true },
+    "toy-rope-1": { "type": "toy-rope", "pickup": true },
+    "toy-rope-2": { "type": "toy-rope", "pickup": true }
+  },
+  "initialPickups": [
+    { "id": "pickup-ball", "type": "ball", "x": 0, "y": 0.5, "z": 1.17, "persistent": true },
+    { "id": "pickup-bone", "type": "bone", "x": -2.6, "y": 0.5, "z": -0.8, "persistent": true },
+    { "id": "pickup-cube", "type": "cube", "x": 2.55, "y": 0.5, "z": -1.6, "persistent": true },
+    { "id": "pickup-gear", "type": "gear", "x": -2.6, "y": 0.5, "z": 3.8, "persistent": true },
+    { "id": "pickup-plush", "type": "plush", "x": 2.8, "y": 0.5, "z": 4.3, "persistent": true }
+  ]
+}

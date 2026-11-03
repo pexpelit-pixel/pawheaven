@@ -1,0 +1,1244 @@
+/* Responsive birthday story layout. All sizing stays inside the visible stage. */
+.gift-birthday-greeting {
+  display: grid;
+  place-items: center;
+  padding: clamp(6px, 1.5vw, 18px);
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.gift-birthday-greeting *,
+.gift-birthday-greeting *::before,
+.gift-birthday-greeting *::after {
+  box-sizing: border-box;
+}
+
+.gift-birthday-greeting .gift-birthday__stage {
+  position: relative;
+  isolation: isolate;
+  width: min(1280px, 100%);
+  height: min(720px, calc(100dvh - 24px));
+  min-height: min(420px, calc(100dvh - 24px));
+  max-height: calc(100dvh - 12px);
+  overflow: hidden;
+  border-radius: clamp(12px, 2vw, 24px);
+}
+
+.gift-birthday__scene {
+  position: absolute;
+  z-index: 1;
+  inset: 0 0 36% 0;
+  min-height: 0;
+  pointer-events: none;
+}
+
+.gift-birthday__scene-glow {
+  position: absolute;
+  z-index: 0;
+  right: 10%;
+  bottom: 1%;
+  width: 54%;
+  height: 92%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255, 236, 188, .42), rgba(255, 228, 174, .1) 52%, transparent 73%);
+}
+
+.gift-birthday__angel-group {
+  position: absolute;
+  z-index: 1;
+  right: 7%;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1%;
+  width: 66%;
+  height: 100%;
+  padding: 0 2%;
+}
+
+.gift-birthday__angel-group--single {
+  right: 8%;
+  width: 62%;
+}
+
+.gift-birthday__angel-group--final {
+  right: 1%;
+  width: 51%;
+  height: 100%;
+}
+
+.gift-birthday__angel-image {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 94%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 12px 18px rgba(20, 34, 39, .24));
+  user-select: none;
+  -webkit-user-drag: none;
+  animation: gift-birthday-angel-arrive .45s cubic-bezier(.18, .8, .22, 1) both;
+}
+
+.gift-birthday__angel-group--single .gift-birthday__angel-image {
+  width: min(78%, 600px);
+}
+
+.gift-birthday__angel-image--pair {
+  width: 49%;
+  height: 88%;
+}
+
+.gift-birthday__angel-image--pair-1 {
+  transform: translateY(3%) rotate(-3deg);
+}
+
+.gift-birthday__angel-image--pair-2 {
+  transform: translateY(0) rotate(3deg);
+  animation-delay: .1s;
+}
+
+.gift-birthday__photo-grid {
+  position: absolute;
+  z-index: 2;
+  left: 4%;
+  top: 6%;
+  bottom: 5%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: clamp(6px, 1vw, 13px);
+  width: min(43%, 520px);
+  min-width: 0;
+  min-height: 0;
+  padding: 5px;
+}
+
+.gift-birthday__photo-grid[hidden] {
+  display: none !important;
+}
+
+.gift-birthday__photo-frame {
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  padding: clamp(3px, .6vw, 8px);
+  overflow: hidden;
+  border: 1px solid rgba(255, 239, 197, .92);
+  border-radius: 10px;
+  background: linear-gradient(145deg, #fff9e8, #e6cfaa);
+  box-shadow: 0 7px 16px rgba(15, 27, 32, .2), inset 0 1px 0 #fff;
+  animation: gift-birthday-photo-arrive .45s ease-out both;
+}
+
+.gift-birthday__photo-frame--1 { transform: rotate(-1deg); }
+.gift-birthday__photo-frame--2 { transform: rotate(1deg); animation-delay: .05s; }
+.gift-birthday__photo-frame--3 { transform: rotate(.7deg); animation-delay: .1s; }
+.gift-birthday__photo-frame--4 { transform: rotate(-.8deg); animation-delay: .15s; }
+
+.gift-birthday__photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 6px;
+  object-fit: cover;
+  object-position: center;
+  background: #d7c5a8;
+}
+
+.gift-birthday-greeting .gift-birthday__dialogue {
+  position: absolute;
+  z-index: 3;
+  left: 3%;
+  right: 3%;
+  bottom: 2.5%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: auto;
+  height: 35%;
+  min-height: 0;
+  max-height: 48%;
+  padding: 38px 28px 22px;
+  overflow: hidden;
+  border-radius: 15px;
+  background: linear-gradient(180deg, rgba(22, 47, 62, .97), rgba(7, 23, 38, .99));
+  color: #fff8e9;
+}
+
+.gift-birthday-greeting .story-greeting__speaker {
+  top: -17px;
+  left: 20px;
+  max-width: calc(100% - 40px);
+  min-height: 32px;
+  padding: 6px 12px;
+  font-size: 8px;
+  line-height: 1.3;
+  letter-spacing: .1em;
+  white-space: normal;
+}
+
+.gift-birthday-greeting .gift-birthday__copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.gift-birthday-greeting .gift-birthday__copy h1 {
+  flex: 0 0 auto;
+  margin: 0 0 7px;
+  color: #f7dda3;
+  font-size: clamp(20px, 2.5vw, 29px);
+  line-height: 1.14;
+  overflow-wrap: anywhere;
+}
+
+.gift-birthday-greeting .gift-birthday__copy p {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  max-width: 1080px;
+  margin: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: #f4f0e6;
+  font-size: clamp(12px, 1.2vw, 14px);
+  line-height: 1.52;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(233, 200, 121, .5) transparent;
+}
+
+.gift-birthday-greeting .gift-birthday__footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  margin-top: 10px;
+  padding-right: 48px;
+}
+
+.gift-birthday-greeting .story-greeting__objective {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 9px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.gift-birthday-greeting .story-greeting__gift {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+}
+
+.gift-birthday-greeting .story-greeting__continue {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: min(185px, 38%);
+  min-height: 42px;
+  padding: 9px 13px;
+  font-size: 8px;
+  letter-spacing: .08em;
+  white-space: normal;
+}
+
+.gift-birthday__page-mark {
+  position: absolute;
+  right: 13px;
+  bottom: 8px;
+  z-index: 2;
+  color: rgba(231, 213, 174, .68);
+  font: 800 8px Manrope, system-ui, sans-serif;
+  letter-spacing: .13em;
+}
+
+@keyframes gift-birthday-angel-arrive {
+  from { opacity: 0; transform: translate3d(12px, 12px, 0) scale(.98); }
+  to { opacity: 1; }
+}
+
+@keyframes gift-birthday-photo-arrive {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to { opacity: 1; }
+}
+
+/* Compact landscape phones and short browser windows. */
+@media (max-height: 600px) {
+  .gift-birthday-greeting {
+    padding: 6px;
+  }
+
+  .gift-birthday-greeting .gift-birthday__stage {
+    width: min(1280px, calc(100vw - 12px));
+    height: calc(100dvh - 12px);
+    min-height: 0;
+    max-height: calc(100dvh - 12px);
+    border-radius: 14px;
+  }
+
+  .gift-birthday__scene {
+    inset: 0 0 49% 0;
+  }
+
+  .gift-birthday__angel-group {
+    right: 1%;
+    width: 69%;
+    padding: 0;
+  }
+
+  .gift-birthday__angel-group--single {
+    right: 3%;
+    width: 66%;
+  }
+
+  .gift-birthday__angel-group--final {
+    right: 0;
+    width: 53%;
+  }
+
+  .gift-birthday__photo-grid {
+    left: 3%;
+    top: 5%;
+    bottom: 5%;
+    width: 43%;
+    gap: 5px;
+    padding: 2px;
+  }
+
+  .gift-birthday__photo-frame {
+    padding: 3px;
+    border-radius: 7px;
+  }
+
+  .gift-birthday-greeting .gift-birthday__dialogue {
+    left: 2%;
+    right: 2%;
+    bottom: 2%;
+    width: auto;
+    height: 47%;
+    min-height: 0;
+    max-height: 47%;
+    padding: 27px 15px 21px;
+    border-radius: 11px;
+  }
+
+  .gift-birthday-greeting .story-greeting__speaker {
+    top: -14px;
+    left: 13px;
+    min-height: 27px;
+    padding: 5px 9px;
+    font-size: 7px;
+    line-height: 1.2;
+  }
+
+  .gift-birthday-greeting .gift-birthday__copy h1 {
+    margin-bottom: 4px;
+    font-size: clamp(16px, 2.4vw, 22px);
+    line-height: 1.1;
+  }
+
+  .gift-birthday-greeting .gift-birthday__copy p {
+    font-size: clamp(10px, 1.3vw, 12px);
+    line-height: 1.38;
+  }
+
+  .gift-birthday-greeting .gift-birthday__footer {
+    gap: 8px;
+    margin-top: 7px;
+    padding-right: 40px;
+  }
+
+  .gift-birthday-greeting .story-greeting__objective {
+    gap: 6px;
+    font-size: 7.5px;
+  }
+
+  .gift-birthday-greeting .story-greeting__gift {
+    flex-basis: 23px;
+    width: 23px;
+    height: 23px;
+    font-size: 13px;
+  }
+
+  .gift-birthday-greeting .story-greeting__continue {
+    min-width: min(155px, 38%);
+    min-height: 34px;
+    padding: 7px 9px;
+    font-size: 7px;
+  }
+
+  .gift-birthday__page-mark {
+    right: 11px;
+    bottom: 6px;
+    font-size: 7px;
+  }
+}
+
+/* Narrow phones that are held upright: render the same landscape card rotated. */
+@media (orientation: portrait) {
+  .gift-birthday-greeting {
+    padding: 0;
+    overflow: visible;
+  }
+
+  .gift-birthday-greeting .gift-birthday__stage {
+    width: min(1280px, calc(100dvh - 16px));
+    height: min(720px, calc(100vw - 16px));
+    min-height: 0;
+    max-height: none;
+    transform: rotate(90deg);
+    transform-origin: center center;
+  }
+}
+
+@media (max-width: 680px) and (orientation: portrait) {
+  .gift-birthday__scene {
+    inset: 0 0 49% 0;
+  }
+
+  .gift-birthday__angel-group {
+    right: 0;
+    width: 69%;
+  }
+
+  .gift-birthday__angel-group--final {
+    right: 0;
+    width: 53%;
+  }
+
+  .gift-birthday__photo-grid {
+    left: 3%;
+    width: 43%;
+    gap: 5px;
+    padding: 2px;
+  }
+
+  .gift-birthday-greeting .gift-birthday__dialogue {
+    left: 2%;
+    right: 2%;
+    bottom: 2%;
+    height: 47%;
+    max-height: 47%;
+    padding: 27px 15px 21px;
+  }
+
+  .gift-birthday-greeting .gift-birthday__copy h1 {
+    font-size: clamp(16px, 2.4vw, 22px);
+  }
+
+  .gift-birthday-greeting .gift-birthday__copy p {
+    font-size: clamp(10px, 1.3vw, 12px);
+    line-height: 1.38;
+  }
+
+  .gift-birthday-greeting .gift-birthday__footer {
+    gap: 8px;
+    margin-top: 7px;
+    padding-right: 40px;
+  }
+
+  .gift-birthday-greeting .story-greeting__continue {
+    min-width: min(155px, 38%);
+    min-height: 34px;
+  }
+}
+
+/* Extra-short landscape screens: keep the message scrollable and the action visible. */
+@media (max-height: 420px) and (orientation: landscape) {
+  .gift-birthday-greeting .gift-birthday__dialogue {
+    height: 51%;
+    max-height: 51%;
+    padding-top: 24px;
+    padding-bottom: 19px;
+  }
+
+  .gift-birthday-greeting .gift-birthday__copy h1 {
+    font-size: clamp(15px, 2vw, 19px);
+  }
+
+  .gift-birthday-greeting .gift-birthday__copy p {
+    font-size: 10px;
+    line-height: 1.32;
+  }
+
+  .gift-birthday-greeting .gift-birthday__footer {
+    margin-top: 5px;
+  }
+
+  .gift-birthday-greeting .story-greeting__continue {
+    min-height: 30px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gift-birthday__angel-image,
+  .gift-birthday__photo-frame {
+    animation: none;
+  }
+}
+
+
+/* Final readability pass: keep the speaker chip inside the dialogue panel. */
+.gift-birthday-greeting .gift-birthday__dialogue {
+  padding: clamp(12px, 2vh, 18px) clamp(14px, 2.4vw, 28px) 18px;
+  gap: 0;
+}
+
+.gift-birthday-greeting .story-greeting__speaker {
+  position: relative;
+  inset: auto;
+  top: auto;
+  left: auto;
+  align-self: flex-start;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 9px;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 0 10px;
+  padding: 7px 12px;
+  overflow: visible;
+  border: 1px solid rgba(245, 218, 160, .92);
+  border-radius: 9px;
+  background: linear-gradient(135deg, #fff1c9, #e8c47f);
+  color: #42331f;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, .16), inset 0 1px 0 rgba(255, 255, 255, .85);
+  font: 800 clamp(8px, .8vw, 9px)/1.45 Manrope, system-ui, sans-serif;
+  letter-spacing: .055em;
+  text-shadow: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.gift-birthday-greeting .story-greeting__speaker-mark {
+  flex: 0 0 auto;
+  color: #9b7133;
+  font-size: 14px;
+  line-height: 1;
+  text-shadow: none;
+}
+
+.gift-birthday-greeting .story-greeting__speaker [data-role="speaker"] {
+  display: block;
+  flex: 1 1 180px;
+  min-width: 0;
+  max-width: 100%;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.gift-birthday-greeting .gift-birthday__copy h1 {
+  margin: 0 0 8px;
+  color: #ffe4a7;
+  font-size: clamp(20px, 2.35vw, 29px);
+  line-height: 1.16;
+  letter-spacing: -.025em;
+  text-shadow: 0 2px 7px rgba(0, 0, 0, .3);
+}
+
+.gift-birthday-greeting .gift-birthday__copy p {
+  color: #fff9ed;
+  font-size: clamp(12px, 1.18vw, 14px);
+  line-height: 1.62;
+  letter-spacing: .008em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .2);
+  text-wrap: pretty;
+  scrollbar-gutter: stable;
+}
+
+.gift-birthday-greeting .gift-birthday__copy p::-webkit-scrollbar {
+  width: 5px;
+}
+
+.gift-birthday-greeting .gift-birthday__copy p::-webkit-scrollbar-thumb {
+  border-radius: 8px;
+  background: rgba(238, 211, 153, .5);
+}
+
+.gift-birthday-greeting .gift-birthday__footer {
+  margin-top: 9px;
+}
+
+.gift-birthday-greeting .story-greeting__objective {
+  color: #f2dfb9;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.gift-birthday-greeting .story-greeting__continue {
+  min-height: 40px;
+  font-size: 8px;
+  letter-spacing: .075em;
+}
+
+@media (max-height: 600px) {
+  .gift-birthday-greeting .gift-birthday__dialogue {
+    padding: 10px 15px 18px;
+  }
+
+  .gift-birthday-greeting .story-greeting__speaker {
+    gap: 5px 7px;
+    margin-bottom: 6px;
+    padding: 5px 9px;
+    font-size: 7.5px;
+    line-height: 1.35;
+  }
+
+  .gift-birthday-greeting .story-greeting__speaker-mark {
+    font-size: 12px;
+  }
+
+  .gift-birthday-greeting .gift-birthday__copy h1 {
+    margin-bottom: 4px;
+    font-size: clamp(16px, 2.2vw, 22px);
+    line-height: 1.12;
+  }
+
+  .gift-birthday-greeting .gift-birthday__copy p {
+    font-size: clamp(10px, 1.25vw, 12px);
+    line-height: 1.42;
+  }
+
+  .gift-birthday-greeting .gift-birthday__footer {
+    margin-top: 6px;
+  }
+}
+
+@media (max-height: 420px) and (orientation: landscape) {
+  .gift-birthday-greeting .gift-birthday__dialogue {
+    padding-top: 8px;
+    padding-bottom: 16px;
+  }
+
+  .gift-birthday-greeting .story-greeting__speaker {
+    margin-bottom: 4px;
+    padding: 4px 8px;
+    font-size: 7px;
+  }
+
+  .gift-birthday-greeting .gift-birthday__copy h1 {
+    font-size: 15px;
+  }
+
+  .gift-birthday-greeting .gift-birthday__copy p {
+    font-size: 9.5px;
+    line-height: 1.35;
+  }
+}
+
+
+/* Private developer letter: a portrait-like reading card inside the paused story. */
+.gift-birthday__letter {
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  width: min(680px, calc(100% - 28px));
+  height: min(94%, 690px);
+  min-width: 0;
+  min-height: 0;
+  max-height: calc(100% - 20px);
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  border: 1px solid rgba(244, 213, 155, .9);
+  border-radius: clamp(15px, 2vw, 24px);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 245, 217, .98), transparent 55%),
+    linear-gradient(180deg, #fff9ec 0%, #f7ecd7 100%);
+  color: #493b31;
+  box-shadow: 0 24px 75px rgba(0, 0, 0, .4), inset 0 0 0 5px rgba(255, 255, 255, .38);
+  animation: gift-birthday-letter-arrive .55s cubic-bezier(.18, .8, .22, 1) both;
+}
+
+.gift-birthday__letter[hidden] {
+  display: none !important;
+}
+
+.gift-birthday__letter-header {
+  flex: 0 0 auto;
+  padding: clamp(19px, 3vh, 28px) clamp(21px, 4vw, 38px) 13px;
+  text-align: center;
+}
+
+.gift-birthday__letter-kicker {
+  color: #9c7950;
+  font: 800 9px/1.5 Manrope, system-ui, sans-serif;
+  letter-spacing: .2em;
+}
+
+.gift-birthday__letter-kicker span {
+  display: inline-block;
+  margin-right: 6px;
+  color: #c48b65;
+}
+
+.gift-birthday__letter-header h1 {
+  margin: 8px 0 6px;
+  color: #75513f;
+  font: 800 clamp(23px, 3.2vw, 34px)/1.16 Manrope, system-ui, sans-serif;
+  letter-spacing: -.04em;
+  text-wrap: balance;
+}
+
+.gift-birthday__letter-header p {
+  margin: 0;
+  color: #907966;
+  font: 500 clamp(11px, 1.3vw, 13px)/1.55 'DM Sans', system-ui, sans-serif;
+}
+
+.gift-birthday__letter-rule {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(230px, 72%);
+  margin: 15px auto 0;
+  color: #c48b83;
+}
+
+.gift-birthday__letter-rule::before,
+.gift-birthday__letter-rule::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(185, 139, 103, .55));
+}
+
+.gift-birthday__letter-rule::after {
+  transform: rotate(180deg);
+}
+
+.gift-birthday__letter-rule span {
+  font-size: 13px;
+}
+
+.gift-birthday__letter-scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 2px clamp(21px, 4vw, 39px) 18px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(170, 127, 91, .45) transparent;
+  outline: none;
+}
+
+.gift-birthday__letter-scroll:focus-visible {
+  outline: 2px solid rgba(179, 133, 93, .5);
+  outline-offset: -3px;
+  border-radius: 8px;
+}
+
+.gift-birthday__letter-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.gift-birthday__letter-scroll::-webkit-scrollbar-thumb {
+  border-radius: 8px;
+  background: rgba(170, 127, 91, .45);
+}
+
+.gift-birthday__letter-body {
+  max-width: 570px;
+  margin: 0 auto;
+}
+
+.gift-birthday__letter-paragraph {
+  margin: 0 0 15px;
+  color: #5c4d42;
+  font: 500 clamp(13px, 1.4vw, 15px)/1.82 'DM Sans', system-ui, sans-serif;
+  letter-spacing: .005em;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.gift-birthday__letter-paragraph--salutation {
+  margin-bottom: 18px;
+  color: #9d6d65;
+  font-weight: 700;
+  font-size: clamp(15px, 1.7vw, 18px);
+  line-height: 1.65;
+}
+
+.gift-birthday__letter-signoff {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 27px auto 13px;
+  padding: 20px 12px 16px;
+  border-top: 1px solid rgba(185, 139, 103, .35);
+  text-align: center;
+}
+
+.gift-birthday__letter-signoff-caption {
+  color: #9a826f;
+  font: 600 11px/1.5 'DM Sans', system-ui, sans-serif;
+  letter-spacing: .03em;
+}
+
+.gift-birthday__love {
+  min-height: 1.2em;
+  color: #c26e78;
+  font: 900 clamp(30px, 5vw, 43px)/1.2 Manrope, system-ui, sans-serif;
+  letter-spacing: .16em;
+  text-indent: .16em;
+  text-shadow: 0 5px 16px rgba(187, 102, 117, .2);
+}
+
+.gift-birthday__love.is-writing::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: .9em;
+  margin-left: 4px;
+  vertical-align: -.08em;
+  background: #c26e78;
+  animation: gift-birthday-letter-caret .8s steps(2, start) infinite;
+}
+
+.gift-birthday__love.is-written {
+  animation: gift-birthday-love-pop .6s cubic-bezier(.2, .9, .25, 1.2) both;
+}
+
+.gift-birthday__love-heart {
+  color: #cf8a8b;
+  font-size: 16px;
+  animation: gift-birthday-heart-pulse 1.6s ease-in-out infinite;
+}
+
+.gift-birthday__letter-bottom {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  padding: 0 clamp(16px, 3vw, 28px) clamp(13px, 2vh, 19px);
+  background: linear-gradient(180deg, rgba(255, 249, 236, .78), #fff9ec 28%);
+}
+
+.gift-birthday__read-progress {
+  width: 100%;
+  height: 3px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: rgba(162, 126, 93, .16);
+}
+
+.gift-birthday__read-progress span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #d9ad87, #cc7e89);
+  transition: width .12s linear;
+}
+
+.gift-birthday__letter-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.gift-birthday__letter-bottom-row > span {
+  min-width: 0;
+  color: #9a826f;
+  font: 800 8px/1.45 Manrope, system-ui, sans-serif;
+  letter-spacing: .09em;
+}
+
+.gift-birthday__letter-close {
+  flex: 0 0 auto;
+  min-width: 174px;
+  min-height: 39px;
+  padding: 8px 13px;
+  border-color: #d8a9a0;
+  background: linear-gradient(180deg, #f5d8d2, #d99ba0);
+  color: #5d3940;
+  opacity: .45;
+  letter-spacing: .07em;
+}
+
+.gift-birthday__letter-close.is-ready {
+  opacity: 1;
+}
+
+@keyframes gift-birthday-letter-arrive {
+  from { opacity: 0; transform: translate(-50%, -47%) scale(.97); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes gift-birthday-letter-caret {
+  to { opacity: 0; }
+}
+
+@keyframes gift-birthday-love-pop {
+  0% { opacity: .35; transform: translateY(8px) scale(.92); }
+  70% { opacity: 1; transform: translateY(-2px) scale(1.05); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes gift-birthday-heart-pulse {
+  0%, 100% { transform: scale(1); opacity: .8; }
+  50% { transform: scale(1.2); opacity: 1; }
+}
+
+@media (max-height: 600px) {
+  .gift-birthday__letter {
+    width: min(590px, calc(100% - 22px));
+    height: 94%;
+    max-height: 94%;
+    border-radius: 14px;
+  }
+
+  .gift-birthday__letter-header {
+    padding: 10px 22px 8px;
+  }
+
+  .gift-birthday__letter-header h1 {
+    margin: 4px 0;
+    font-size: clamp(19px, 2.7vw, 26px);
+  }
+
+  .gift-birthday__letter-rule {
+    margin-top: 8px;
+  }
+
+  .gift-birthday__letter-scroll {
+    padding: 0 22px 12px;
+  }
+
+  .gift-birthday__letter-paragraph {
+    margin-bottom: 10px;
+    font-size: 12px;
+    line-height: 1.65;
+  }
+
+  .gift-birthday__letter-paragraph--salutation {
+    font-size: 14px;
+  }
+
+  .gift-birthday__letter-signoff {
+    margin: 16px auto 8px;
+    padding: 13px 8px 10px;
+  }
+
+  .gift-birthday__love {
+    font-size: clamp(25px, 4vw, 34px);
+  }
+
+  .gift-birthday__letter-bottom {
+    padding-bottom: 9px;
+  }
+
+  .gift-birthday__letter-bottom-row > span {
+    font-size: 7px;
+  }
+
+  .gift-birthday__letter-close {
+    min-width: 150px;
+    min-height: 34px;
+    font-size: 7px;
+  }
+}
+
+@media (max-height: 420px) and (orientation: landscape) {
+  .gift-birthday__letter {
+    width: min(540px, calc(100% - 18px));
+    height: 96%;
+    max-height: 96%;
+  }
+
+  .gift-birthday__letter-header {
+    padding: 7px 18px 5px;
+  }
+
+  .gift-birthday__letter-kicker {
+    font-size: 7px;
+  }
+
+  .gift-birthday__letter-header h1 {
+    font-size: 18px;
+  }
+
+  .gift-birthday__letter-header p {
+    font-size: 10px;
+  }
+
+  .gift-birthday__letter-rule {
+    margin-top: 5px;
+  }
+
+  .gift-birthday__letter-scroll {
+    padding: 0 18px 8px;
+  }
+
+  .gift-birthday__letter-paragraph {
+    margin-bottom: 8px;
+    font-size: 10.5px;
+    line-height: 1.5;
+  }
+
+  .gift-birthday__letter-signoff {
+    margin-top: 10px;
+    padding: 9px 6px;
+  }
+
+  .gift-birthday__love {
+    font-size: 25px;
+  }
+
+  .gift-birthday__letter-bottom {
+    padding-bottom: 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gift-birthday__letter,
+  .gift-birthday__love.is-written,
+  .gift-birthday__love-heart {
+    animation: none;
+  }
+
+  .gift-birthday__read-progress span {
+    transition: none;
+  }
+}
+
+
+/* Romantic closing signature: refined lettering and a clearly visible heartbeat. */
+.gift-birthday__letter-signoff {
+  position: relative;
+  isolation: isolate;
+  gap: 10px;
+  margin-top: 29px;
+  padding: 23px 12px 20px;
+  border-top: 1px solid rgba(185, 139, 103, .32);
+}
+
+.gift-birthday__letter-signoff::before,
+.gift-birthday__letter-signoff::after {
+  content: "✧";
+  position: absolute;
+  top: 17px;
+  color: rgba(195, 137, 137, .7);
+  font-size: 13px;
+  animation: gift-birthday-signoff-sparkle 2.8s ease-in-out infinite;
+}
+
+.gift-birthday__letter-signoff::before {
+  left: clamp(15px, 12%, 85px);
+}
+
+.gift-birthday__letter-signoff::after {
+  right: clamp(15px, 12%, 85px);
+  animation-delay: 1.4s;
+}
+
+.gift-birthday__letter-signoff-caption {
+  color: #9b7b72;
+  font: 600 11px/1.6 'DM Sans', system-ui, sans-serif;
+  letter-spacing: .055em;
+}
+
+.gift-birthday__love {
+  position: relative;
+  display: inline-block;
+  min-width: 0;
+  min-height: 1.28em;
+  padding: 2px 8px 4px;
+  color: #c66f83;
+  background: linear-gradient(105deg, #a75c72 4%, #d78b9c 28%, #f0b6b5 48%, #c36c85 69%, #98566f 96%);
+  background-size: 220% 100%;
+  background-position: 100% 50%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font: 800 clamp(31px, 5.2vw, 46px)/1.22 'Playfair Display', 'Cormorant Garamond', Georgia, serif;
+  letter-spacing: clamp(.075em, .45vw, .13em);
+  word-spacing: .12em;
+  text-indent: .08em;
+  white-space: nowrap;
+  text-shadow: none;
+  filter: drop-shadow(0 5px 10px rgba(174, 91, 115, .13));
+  transition: filter .45s ease, background-position 1.4s ease;
+}
+
+.gift-birthday__love::before {
+  content: "✦";
+  position: absolute;
+  top: -13px;
+  right: -12px;
+  color: #d59c87;
+  font: 12px/1 Georgia, serif;
+  -webkit-text-fill-color: #d59c87;
+  text-shadow: 0 0 10px rgba(215, 157, 135, .65);
+  animation: gift-birthday-love-star 2.2s ease-in-out infinite;
+}
+
+.gift-birthday__love.is-writing {
+  background-position: 0 50%;
+}
+
+.gift-birthday__love.is-writing::after {
+  width: 2px;
+  height: .84em;
+  margin-left: 6px;
+  vertical-align: -.04em;
+  background: #bd6b80;
+  -webkit-text-fill-color: initial;
+}
+
+.gift-birthday__love.is-written {
+  background-position: 0 50%;
+  filter: drop-shadow(0 5px 12px rgba(179, 89, 116, .22));
+  animation: gift-birthday-love-pop .72s cubic-bezier(.2, .9, .25, 1.2) both;
+}
+
+.gift-birthday__love-heart {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-top: 2px;
+  border: 1px solid rgba(213, 141, 150, .24);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 220, 222, .94) 0%, rgba(250, 228, 221, .58) 48%, rgba(250, 228, 221, 0) 74%);
+  color: #cf7085;
+  font: 900 24px/1 Georgia, serif;
+  text-shadow: 0 3px 10px rgba(182, 82, 111, .28);
+  filter: drop-shadow(0 0 5px rgba(219, 133, 147, .25));
+  transform-origin: center;
+  animation: gift-birthday-heart-pulse 1.12s cubic-bezier(.42, 0, .35, 1) infinite;
+}
+
+.gift-birthday__love-heart::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -5px;
+  border: 1px solid rgba(207, 112, 133, .26);
+  border-radius: 50%;
+  animation: gift-birthday-heart-halo 1.12s ease-out infinite;
+}
+
+@keyframes gift-birthday-heart-pulse {
+  0%, 100% {
+    transform: scale(.91);
+    filter: drop-shadow(0 0 4px rgba(219, 133, 147, .22));
+  }
+  16% {
+    transform: scale(1.16);
+    filter: drop-shadow(0 0 12px rgba(219, 113, 137, .52));
+  }
+  32% {
+    transform: scale(.99);
+  }
+  48% {
+    transform: scale(1.09);
+    filter: drop-shadow(0 0 9px rgba(219, 113, 137, .4));
+  }
+  70% {
+    transform: scale(.94);
+  }
+}
+
+@keyframes gift-birthday-heart-halo {
+  0% { opacity: .55; transform: scale(.82); }
+  75%, 100% { opacity: 0; transform: scale(1.42); }
+}
+
+@keyframes gift-birthday-love-star {
+  0%, 100% { opacity: .45; transform: scale(.8) rotate(-12deg); }
+  50% { opacity: 1; transform: scale(1.22) rotate(12deg); }
+}
+
+@keyframes gift-birthday-signoff-sparkle {
+  0%, 100% { opacity: .35; transform: translateY(1px) scale(.85); }
+  50% { opacity: 1; transform: translateY(-3px) scale(1.15); }
+}
+
+@media (max-width: 420px) {
+  .gift-birthday__love {
+    font-size: clamp(27px, 8vw, 34px);
+    letter-spacing: .065em;
+    word-spacing: .05em;
+  }
+
+  .gift-birthday__love-heart {
+    width: 38px;
+    height: 38px;
+    font-size: 22px;
+  }
+
+  .gift-birthday__letter-signoff::before {
+    left: 12px;
+  }
+
+  .gift-birthday__letter-signoff::after {
+    right: 12px;
+  }
+}
+
+@media (max-height: 600px) {
+  .gift-birthday__letter-signoff {
+    gap: 6px;
+    margin-top: 14px;
+    padding: 12px 8px 9px;
+  }
+
+  .gift-birthday__letter-signoff::before,
+  .gift-birthday__letter-signoff::after {
+    top: 8px;
+    font-size: 10px;
+  }
+
+  .gift-birthday__love {
+    font-size: clamp(25px, 4vw, 34px);
+  }
+
+  .gift-birthday__love-heart {
+    width: 34px;
+    height: 34px;
+    font-size: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gift-birthday__love::before,
+  .gift-birthday__letter-signoff::before,
+  .gift-birthday__letter-signoff::after,
+  .gift-birthday__love-heart,
+  .gift-birthday__love-heart::before {
+    animation: none;
+  }
+}

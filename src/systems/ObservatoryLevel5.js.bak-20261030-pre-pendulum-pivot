@@ -1,0 +1,966 @@
+import * as THREE from 'three';
+import album0Asset from '../world/skin/object/album0.webp';
+import album1Asset from '../world/skin/object/album1.webp';
+import album2Asset from '../world/skin/object/album2.webp';
+import album3Asset from '../world/skin/object/album3.webp';
+
+const FLOOR_Y = 0.42;
+const clamp01 = (value) => Math.max(0, Math.min(1, value));
+
+function makeMat(color, metalness = 0.08, roughness = 0.62, emissive = null) {
+  return new THREE.MeshStandardMaterial({
+    color,
+    metalness,
+    roughness,
+    flatShading: true,
+    ...(emissive ? { emissive, emissiveIntensity: 0.48 } : {})
+  });
+}
+
+function addMesh(parent, geometry, material, name, position = [0, 0, 0]) {
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = name;
+  mesh.position.set(position[0], position[1], position[2]);
+  mesh.castShadow = false;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+function addPhotoGallery({ group, box }) {
+  const assets = [album0Asset, album1Asset, album3Asset];
+  const textures = assets.map((asset) => {
+    const texture = new THREE.TextureLoader().load(asset);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 2;
+    group.userData.disposeTextures.push(texture);
+    return texture;
+  });
+
+  const addFrame = (index, x, z, side) => {
+    const frame = new THREE.Group();
+    frame.name = 'Observatory-Memory-PhotoFrame-' + index;
+    frame.position.set(x, 1.68, z);
+    frame.rotation.y = side < 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
+    group.add(frame);
+    box('MemoryFrameBack-' + index, 0, 0, 0, 1.56, 1.92, 0.16, '#916f62', false, 0.18, frame);
+    box('MemoryFrameTop-' + index, 0, 0.91, 0.105, 1.60, 0.13, 0.12, '#e7c68f', false, 0.26, frame);
+    box('MemoryFrameBottom-' + index, 0, -0.91, 0.105, 1.60, 0.13, 0.12, '#e7c68f', false, 0.26, frame);
+    box('MemoryFrameLeft-' + index, -0.735, 0, 0.105, 0.13, 1.76, 0.12, '#e7c68f', false, 0.26, frame);
+    box('MemoryFrameRight-' + index, 0.735, 0, 0.105, 0.13, 1.76, 0.12, '#e7c68f', false, 0.26, frame);
+    const photoMaterial = new THREE.MeshBasicMaterial({
+      map: textures[index % textures.length],
+      side: THREE.DoubleSide,
+      toneMapped: false
+    });
+    const photo = addMesh(frame, new THREE.PlaneGeometry(1.34, 1.64), photoMaterial,
+      'MemoryPhoto-' + index, [0, 0, 0.091]);
+    photo.userData.albumDisplayOnly = true;
+  };
+
+  const placements = [
+    [-6.2, -31.0, -1],
+    [6.2, 32.0, 1],
+    [-6.2, 99.0, -1]
+  ];
+  placements.forEach(([x, z, side], index) => addFrame(index, x, z, side));
+}
+
+function buildRunePuzzle({ group, box }) {
+  const symbols = ['sun', 'moon', 'star'];
+  const xPositions = [-2.8, 0, 2.8];
+  const runes = [];
+  const glyphMats = {
+    sun: makeMat('#f4c56e', 0.28, 0.42, '#d99b35'),
+    moon: makeMat('#92d7e8', 0.24, 0.42, '#4e9fbd'),
+    star: makeMat('#c4a4ee', 0.24, 0.42, '#8b61ce')
+  };
+
+  box('SilentSymbols-CluePedestal', 0, 1.56, -22.2, 4.6, 2.25, 0.32, '#536a85', false, 0.24);
+  const clueSequence = ['star', 'moon', 'sun'];
+  clueSequence.forEach((symbol, index) => {
+    const x = -1.35 + index * 1.35;
+    const icon = symbol === 'sun'
+      ? new THREE.SphereGeometry(0.22, 8, 6)
+      : symbol === 'moon'
+        ? new THREE.TorusGeometry(0.22, 0.075, 5, 12, Math.PI * 1.55)
+        : new THREE.OctahedronGeometry(0.28, 0);
+    addMesh(group, icon, glyphMats[symbol], 'SilentSymbols-Clue-' + symbol, [x, 1.65, -22.0]);
+  });
+
+  symbols.forEach((symbol, index) => {
+    const x = xPositions[index];
+    const root = new THREE.Group();
+    root.name = 'SilentRune-' + symbol;
+    root.position.set(x, FLOOR_Y + 0.04, -18.0);
+    group.add(root);
+    addMesh(root, new THREE.CylinderGeometry(0.56, 0.62, 0.11, 8), makeMat('#687f97', 0.28),
+      'RuneBase-' + symbol, [0, 0, 0]);
+    addMesh(root, new THREE.TorusGeometry(0.40, 0.035, 5, 18), glyphMats[symbol],
+      'RuneHalo-' + symbol, [0, 0.08, 0]);
+    let glyph;
+    if (symbol === 'sun') glyph = new THREE.SphereGeometry(0.19, 8, 6);
+    else if (symbol === 'moon') glyph = new THREE.TorusGeometry(0.20, 0.075, 5, 12, Math.PI * 1.55);
+    else glyph = new THREE.OctahedronGeometry(0.25, 0);
+    const glyphMesh = addMesh(root, glyph, glyphMats[symbol], 'RuneGlyph-' + symbol, [0, 0.16, 0]);
+    if (symbol === 'moon') glyphMesh.rotation.z = -0.52;
+    runes.push({ symbol, mesh: root, glyph: glyphMesh, solved: false, position: { x, z: -18.0 } });
+  });
+  return { runes, sequence: ['star', 'moon', 'sun'], index: 0 };
+}
+
+function buildMosaic({ group, box }) {
+  box('MemoryMosaicTable', 0, 0.73, -3.0, 4.25, 0.16, 5.45, '#806d80', false, 0.16);
+  box('MemoryMosaicRimFront', 0, 0.91, -5.68, 4.4, 0.18, 0.18, '#e3c18d', false, 0.28);
+  box('MemoryMosaicRimBack', 0, 0.91, -0.32, 4.4, 0.18, 0.18, '#e3c18d', false, 0.28);
+  box('MemoryMosaicRimLeft', -2.11, 0.91, -3.0, 0.18, 0.18, 5.3, '#e3c18d', false, 0.28);
+  box('MemoryMosaicRimRight', 2.11, 0.91, -3.0, 0.18, 0.18, 5.3, '#e3c18d', false, 0.28);
+  const guideTexture = new THREE.TextureLoader().load(album2Asset);
+  guideTexture.colorSpace = THREE.SRGBColorSpace;
+  guideTexture.anisotropy = 2;
+  group.userData.disposeTextures.push(guideTexture);
+  const guideMaterial = new THREE.MeshBasicMaterial({ map: guideTexture, side: THREE.DoubleSide });
+  const guide = addMesh(group, new THREE.PlaneGeometry(1.75, 2.32), guideMaterial,
+    'MemoryMosaic-FullImageGuide', [4.8, 1.62, -3.0]);
+  guide.rotation.y = -Math.PI * 0.5;
+
+  const cells = [];
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 3; col++) {
+      cells.push({ x: (col - 1) * 1.22, y: 1.01, z: -4.85 + row * 1.23 });
+    }
+  }
+  const scramble = [7, 2, 9, 0, 10, 4, 6, 1, 11, 3, 8, 5];
+  const sideMaterial = makeMat('#9b8da0', 0.12, 0.74);
+  const topMaterials = [];
+  const tiles = [];
+  const tileGeometry = new THREE.BoxGeometry(1.12, 0.16, 1.12);
+  scramble.forEach((pieceId, cellIndex) => {
+    const topMaterial = makeMat('#b7a9b6', 0.08, 0.68);
+    topMaterials.push(topMaterial);
+    const materials = [sideMaterial, sideMaterial, topMaterial, sideMaterial, sideMaterial, sideMaterial];
+    const mesh = addMesh(group, tileGeometry, materials, 'MemoryMosaic-Cube-' + pieceId,
+      [cells[cellIndex].x, cells[cellIndex].y, cells[cellIndex].z]);
+    mesh.userData.pieceId = pieceId;
+    mesh.userData.cellIndex = cellIndex;
+    mesh.userData.mosaicTile = true;
+    tiles.push({ mesh, pieceId, cellIndex });
+  });
+  const selectionRing = addMesh(group, new THREE.TorusGeometry(0.56, 0.045, 5, 18),
+    makeMat('#fff0a6', 0.22, 0.36, '#e3bd58'), 'MemoryMosaic-SelectionRing', [0, 1.12, 0]);
+  selectionRing.rotation.x = Math.PI / 2;
+  selectionRing.visible = false;
+
+  const albumTexture = new THREE.TextureLoader().load(album2Asset, (texture) => {
+    if (group.userData.disposed) {
+      texture.dispose();
+      return;
+    }
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 2;
+    for (const tile of tiles) {
+      const row = Math.floor(tile.pieceId / 3);
+      const col = tile.pieceId % 3;
+      const crop = texture.clone();
+      crop.colorSpace = THREE.SRGBColorSpace;
+      crop.repeat.set(1 / 3, 1 / 4);
+      crop.offset.set(col / 3, (3 - row) / 4);
+      crop.needsUpdate = true;
+      group.userData.disposeTextures.push(crop);
+      const topMaterial = tile.mesh.material[2];
+      topMaterial.map = crop;
+      topMaterial.color.set('#ffffff');
+      topMaterial.needsUpdate = true;
+    }
+  });
+  group.userData.disposeTextures.push(albumTexture);
+
+  return {
+    tiles,
+    cells,
+    selectionRing,
+    selectedTile: null,
+    swapAnimation: null,
+    isSolved: false
+  };
+}
+
+function buildWeightPuzzle({ group, box, solids }) {
+  const cratePositions = [
+    { x: -4.1, z: 9.7 },
+    { x: 0, z: 9.2 },
+    { x: 4.1, z: 9.7 }
+  ];
+  const targets = [
+    { x: -4.1, z: 15.0 },
+    { x: 0, z: 15.5 },
+    { x: 4.1, z: 15.0 }
+  ];
+  const targetMeshes = [];
+  targets.forEach((target, index) => {
+    const ring = addMesh(group, new THREE.TorusGeometry(0.58, 0.055, 5, 18),
+      makeMat('#f2d18c', 0.28, 0.4, '#c28c43'),
+      'WeightTruth-Target-' + index, [target.x, FLOOR_Y + 0.07, target.z]);
+    ring.rotation.x = Math.PI / 2;
+    targetMeshes.push(ring);
+    box('WeightTruth-Plate-' + index, target.x, FLOOR_Y + 0.04, target.z,
+      1.0, 0.08, 1.0, '#927c66', false, 0.14);
+  });
+
+  const crates = [];
+  cratePositions.forEach((position, index) => {
+    const root = new THREE.Group();
+    root.name = 'WeightTruth-Crate-' + index;
+    root.position.set(position.x, FLOOR_Y + 0.43, position.z);
+    group.add(root);
+    box('WeightCrateCore-' + index, 0, 0, 0, 0.78, 0.78, 0.78, '#ad7950', false, 0.05, root);
+    for (const y of [-0.27, 0, 0.27]) {
+      box('WeightCrateRail-' + index + '-' + y, 0, y, -0.405, 0.80, 0.075, 0.055, '#e0b77e', false, 0.08, root);
+    }
+    const prop = {
+      id: 'level5-weight-crate-' + index,
+      group: root,
+      origin: { x: position.x, y: FLOOR_Y + 0.43, z: position.z },
+      spawnLift: 0,
+      mass: 7.5,
+      gravityScale: 1,
+      linearDamping: 0.62,
+      angularDamping: 2.2,
+      friction: 0.88,
+      restitution: 0.025,
+      ccdEnabled: true,
+      canSleep: false
+    };
+    solids.push({
+      x: position.x, y: FLOOR_Y + 0.43, z: position.z,
+      sx: 0.39, sy: 0.39, sz: 0.39,
+      dynamicProp: prop
+    });
+    crates.push({ id: prop.id, target });
+  });
+  return { crates, targets, targetMeshes, completed: false };
+}
+
+function buildLightPuzzle({ group, box }) {
+  const positions = [-3.2, 0, 3.2];
+  const targetSteps = [1, 3, 2];
+  const mirrors = positions.map((x, index) => {
+    box('LightWeaver-Base-' + index, x, FLOOR_Y + 0.20, 31.0, 1.20, 0.34, 1.20,
+      '#4f8588', false, 0.18);
+    const root = new THREE.Group();
+    root.name = 'LightWeaver-Prism-' + index;
+    root.position.set(x, FLOOR_Y + 1.05, 31.0);
+    group.add(root);
+    const crystal = addMesh(root, new THREE.OctahedronGeometry(0.42, 0),
+      makeMat('#8de6e0', 0.22, 0.3, '#46c5c0'),
+      'LightWeaver-Crystal-' + index, [0, 0, 0]);
+    const mirror = addMesh(root, new THREE.BoxGeometry(0.84, 0.075, 0.13),
+      makeMat('#e7efff', 0.54, 0.22, '#9bc8ff'),
+      'LightWeaver-Mirror-' + index, [0, -0.42, 0]);
+    const halo = addMesh(root, new THREE.TorusGeometry(0.58, 0.035, 5, 20),
+      makeMat('#a9f5ef', 0.16, 0.38, '#61d7cf'),
+      'LightWeaver-Halo-' + index, [0, -0.12, 0]);
+    halo.rotation.x = Math.PI / 2;
+    const state = { index, root, crystal, mirror, step: 0, targetStep: targetSteps[index] };
+    const targetAngle = state.targetStep * Math.PI * 0.5;
+    const pointer = addMesh(group, new THREE.ConeGeometry(0.11, 0.32, 4),
+      makeMat('#f4dfaa', 0.22, 0.4), 'LightWeaver-TargetPointer-' + index,
+      [x + Math.sin(targetAngle) * 0.72, FLOOR_Y + 1.05,
+        31.0 + Math.cos(targetAngle) * 0.72]);
+    pointer.rotation.set(Math.PI * 0.5, targetAngle, 0);
+    state.pointer = pointer;
+    state.ray = addMesh(root, new THREE.BoxGeometry(0.075, 0.075, 0.88),
+      new THREE.MeshBasicMaterial({ color: '#a4fff0', transparent: true, opacity: 0.68 }),
+      'LightWeaver-ReflectedRay-' + index, [0, -0.18, 0.58]);
+    return state;
+  });
+  box('LightWeaver-Emitter', 0, FLOOR_Y + 1.15, 25.8, 0.45, 1.0, 0.45, '#f5e2a6', false, 0.22);
+  box('LightWeaver-Receiver', 0, FLOOR_Y + 1.18, 36.0, 1.2, 1.1, 0.35, '#d8f8ed', false, 0.22);
+  const beam = addMesh(group, new THREE.CylinderGeometry(0.045, 0.045, 10.0, 6),
+    new THREE.MeshBasicMaterial({ color: '#a4fff0', transparent: true, opacity: 0.44 }),
+    'LightWeaver-Beam', [0, FLOOR_Y + 1.2, 31.0]);
+  beam.rotation.x = Math.PI / 2;
+  return { mirrors, targetSteps, complete: false };
+}
+
+function addGear(root, index, x) {
+  const gear = new THREE.Group();
+  gear.name = 'Clockwork-InteractiveGear-' + index;
+  gear.position.set(x, FLOOR_Y + 1.05, 49.0);
+  root.add(gear);
+  const ring = addMesh(gear, new THREE.TorusGeometry(0.66, 0.15, 5, 12),
+    makeMat('#d7bc8e', 0.56, 0.42, '#9b7742'), 'ClockworkGearRing-' + index);
+  ring.rotation.x = Math.PI / 2;
+  for (let tooth = 0; tooth < 8; tooth++) {
+    const angle = tooth * Math.PI / 4;
+    const toothMesh = addMesh(gear, new THREE.BoxGeometry(0.20, 0.19, 0.28),
+      makeMat('#b69b73', 0.55, 0.46), 'ClockworkGearTooth-' + index + '-' + tooth,
+      [Math.cos(angle) * 0.77, 0, Math.sin(angle) * 0.77]);
+    toothMesh.rotation.y = -angle;
+  }
+  addMesh(gear, new THREE.CylinderGeometry(0.24, 0.24, 0.24, 8),
+    makeMat('#f0d7a1', 0.6, 0.32), 'ClockworkGearHub-' + index);
+  addMesh(gear, new THREE.BoxGeometry(0.10, 0.10, 0.98),
+    makeMat('#fff0b8', 0.32, 0.34, '#d6b45e'),
+    'ClockworkGearDirectionNeedle-' + index, [0, 0.12, 0.52]);
+  return gear;
+}
+
+function buildClockPuzzle({ group, box }) {
+  const targetSteps = [2, 1, 3];
+  const gears = [-3.2, 0, 3.2].map((x, index) => {
+    box('Clockwork-GearPedestal-' + index, x, FLOOR_Y + 0.18, 49.0,
+      1.85, 0.28, 1.85, '#6c6885', false, 0.24);
+    const root = addGear(group, index, x);
+    const targetAngle = targetSteps[index] * Math.PI * 0.5;
+    const marker = addMesh(group, new THREE.ConeGeometry(0.13, 0.30, 4),
+      makeMat('#fff0b8', 0.28, 0.32, '#edc86b'),
+      'Clockwork-GearTarget-' + index,
+      [x + Math.sin(targetAngle) * 1.0, FLOOR_Y + 1.05,
+        49.0 + Math.cos(targetAngle) * 1.0]);
+    marker.rotation.set(Math.PI * 0.5, targetAngle, 0);
+    return { index, root, step: 0, targetStep: targetSteps[index], marker };
+  });
+  box('Clockwork-PendulumTop', 0, 3.45, 45.9, 4.8, 0.22, 0.28, '#d9c18e', false, 0.26);
+  const pendulum = addMesh(group, new THREE.CylinderGeometry(0.055, 0.055, 2.6, 6),
+    makeMat('#d6c18e', 0.62), 'Clockwork-Pendulum', [0, 2.12, 45.9]);
+  addMesh(group, new THREE.SphereGeometry(0.42, 8, 6),
+    makeMat('#edcb89', 0.52), 'Clockwork-PendulumWeight', [0, 0.82, 45.9]);
+  return { gears, targetSteps, pendulum, complete: false, elapsed: 0 };
+}
+
+function makeArtifact(kind) {
+  const root = new THREE.Group();
+  root.name = 'PrincessArtifact-' + kind;
+  const gold = makeMat('#e7c77e', 0.68, 0.28, '#a47b35');
+  const silver = makeMat('#dce6e8', 0.68, 0.3);
+  const gem = makeMat('#a77ee8', 0.28, 0.22, '#754bc0');
+  if (kind === 'ring') {
+    const band = addMesh(root, new THREE.TorusGeometry(0.31, 0.075, 6, 18), gold, 'PrincessRingBand');
+    band.rotation.x = Math.PI / 2;
+    addMesh(root, new THREE.OctahedronGeometry(0.17, 0), gem, 'PrincessRingGem', [0, 0.28, 0]);
+  } else if (kind === 'crown') {
+    const base = addMesh(root, new THREE.TorusGeometry(0.42, 0.09, 6, 18), gold, 'PrincessCrownBase');
+    base.rotation.x = Math.PI / 2;
+    for (let i = 0; i < 5; i++) {
+      const angle = (i / 5) * Math.PI * 2;
+      addMesh(root, new THREE.ConeGeometry(0.09, 0.46, 4), gold,
+        'PrincessCrownPeak-' + i, [Math.cos(angle) * 0.38, 0.25, Math.sin(angle) * 0.38]);
+    }
+    addMesh(root, new THREE.OctahedronGeometry(0.16, 0), gem, 'PrincessCrownGem', [0, 0.50, 0]);
+  } else if (kind === 'scepter') {
+    const rod = addMesh(root, new THREE.CylinderGeometry(0.065, 0.085, 1.05, 6), gold,
+      'PrincessScepterRod', [0, 0.48, 0]);
+    rod.rotation.z = -0.08;
+    addMesh(root, new THREE.OctahedronGeometry(0.24, 0), gem,
+      'PrincessScepterGem', [0, 1.08, 0]);
+  } else if (kind === 'armor') {
+    addMesh(root, new THREE.CylinderGeometry(0.48, 0.62, 0.82, 6, 1),
+      silver, 'PrincessRoyalArmorPlate', [0, 0.42, 0]);
+    addMesh(root, new THREE.BoxGeometry(0.26, 0.52, 0.20), gold,
+      'PrincessArmorCenterTrim', [0, 0.42, 0.31]);
+    addMesh(root, new THREE.OctahedronGeometry(0.16, 0), gem,
+      'PrincessArmorGem', [0, 0.65, 0.38]);
+  }
+  return root;
+}
+
+function buildPrincess({ group, box }) {
+  box('PrincessThrone-PedestalLower', 0, 3.22, 116.0, 4.8, 0.42, 3.6, '#826d91', false, 0.26);
+  box('PrincessThrone-PedestalUpper', 0, 3.58, 116.0, 3.5, 0.30, 2.7, '#dbc49a', false, 0.44);
+  box('PrincessMemoryPillar', 0, 5.25, 117.2, 3.2, 3.1, 0.42, '#8b7c9b', false, 0.26);
+  const statue = new THREE.Group();
+  statue.name = 'PrincessOfForgottenKingdom-Statue';
+  statue.position.set(0, 3.74, 115.75);
+  statue.rotation.y = Math.PI;
+  group.add(statue);
+  const rose = makeMat('#d58caa', 0.14, 0.58);
+  const robe = makeMat('#a77aa8', 0.16, 0.62);
+  const skin = makeMat('#f0c7ad', 0.04, 0.72);
+  const hair = makeMat('#5a3e68', 0.12, 0.56);
+  const gold = makeMat('#e5c67f', 0.58, 0.34);
+  addMesh(statue, new THREE.CylinderGeometry(0.52, 0.78, 1.25, 8),
+    robe, 'Princess-RoyalSkirt', [0, 0.78, 0]);
+  addMesh(statue, new THREE.CylinderGeometry(0.38, 0.48, 0.85, 8),
+    rose, 'Princess-Body', [0, 1.77, 0]);
+  addMesh(statue, new THREE.SphereGeometry(0.34, 8, 7),
+    skin, 'Princess-Face', [0, 2.48, 0.03]);
+  addMesh(statue, new THREE.SphereGeometry(0.39, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.64),
+    hair, 'Princess-Hair', [0, 2.57, -0.035]);
+  addMesh(statue, new THREE.BoxGeometry(0.30, 0.12, 0.08),
+    hair, 'Princess-HairFront', [0, 2.72, 0.31]);
+  const armLeft = addMesh(statue, new THREE.BoxGeometry(0.22, 0.92, 0.24),
+    rose, 'Princess-LeftArm', [-0.61, 1.74, 0.04]);
+  armLeft.rotation.z = -0.48;
+  const armRight = addMesh(statue, new THREE.BoxGeometry(0.22, 0.92, 0.24),
+    rose, 'Princess-RightArm', [0.61, 1.74, 0.04]);
+  armRight.rotation.z = 0.48;
+  addMesh(statue, new THREE.BoxGeometry(0.18, 0.24, 0.22), skin,
+    'Princess-LeftHand', [-0.87, 1.38, 0.10]);
+  addMesh(statue, new THREE.BoxGeometry(0.18, 0.24, 0.22), skin,
+    'Princess-RightHand', [0.87, 1.38, 0.10]);
+  addMesh(statue, new THREE.TorusGeometry(0.50, 0.045, 5, 16),
+    gold, 'Princess-RobeTrim', [0, 0.25, 0]);
+  const anchors = {};
+  const anchorPositions = {
+    ring: [-0.88, 1.38, 0.22],
+    crown: [0, 2.94, 0.02],
+    scepter: [0.95, 1.52, 0.10],
+    armor: [0, 1.78, 0.43]
+  };
+  for (const [kind, position] of Object.entries(anchorPositions)) {
+    const anchor = new THREE.Group();
+    anchor.name = 'Princess-ArtifactSocket-' + kind;
+    anchor.position.set(position[0], position[1], position[2]);
+    statue.add(anchor);
+    const halo = addMesh(anchor, new THREE.TorusGeometry(kind === 'armor' ? 0.46 : 0.24, 0.035, 5, 14),
+      makeMat('#c0e9ef', 0.18, 0.36, '#73c5ce'), 'Princess-ArtifactHalo-' + kind);
+    halo.rotation.x = Math.PI / 2;
+    anchors[kind] = anchor;
+  }
+  // A small gold diadem outline makes the empty crown socket readable before installation.
+  addMesh(statue, new THREE.TorusGeometry(0.42, 0.045, 5, 16), gold,
+    'Princess-DiademGuide', [0, 2.91, 0]);
+  return { statue, anchors, installOrder: ['ring', 'crown', 'scepter', 'armor'] };
+}
+
+function buildRally({ group, box, solids }) {
+  const opponent = new THREE.Group();
+  opponent.name = 'BraidelLastRally-Opponent';
+  opponent.position.set(1.8, 3.0, 102.3);
+  box('BraidelFinalBody', 0, 0.44, 0, 0.78, 0.76, 0.54, '#f4d58c', false, 0.08, opponent);
+  addMesh(opponent, new THREE.SphereGeometry(0.33, 8, 6), makeMat('#fff0cf'),
+    'BraidelFinalHead', [0, 0.92, -0.08]);
+  addMesh(opponent, new THREE.SphereGeometry(0.045, 6, 5), makeMat('#425067'),
+    'BraidelFinalEyeL', [-0.12, 0.97, -0.35]);
+  addMesh(opponent, new THREE.SphereGeometry(0.045, 6, 5), makeMat('#425067'),
+    'BraidelFinalEyeR', [0.12, 0.97, -0.35]);
+  group.add(opponent);
+  box('BraidelLastRally-PostL', -3.5, 3.72, 100.6, 0.16, 1.4, 0.16, '#94e9e7', false, 0.14);
+  box('BraidelLastRally-PostR', 3.5, 3.72, 100.6, 0.16, 1.4, 0.16, '#94e9e7', false, 0.14);
+  box('BraidelLastRally-Crossbar', 0, 4.38, 100.6, 7.0, 0.14, 0.14, '#4e829d', false, 0.16);
+
+  const ball = new THREE.Group();
+  ball.name = 'BraidelLastRally-Ball';
+  addMesh(ball, new THREE.SphereGeometry(0.25, 10, 8),
+    makeMat('#ffb86b', 0.12, 0.28), 'BraidelLastRally-BallMesh');
+  const stripe = addMesh(ball, new THREE.TorusGeometry(0.19, 0.025, 5, 16),
+    makeMat('#fff0cf'), 'BraidelLastRally-BallStripe');
+  stripe.rotation.x = Math.PI / 2;
+  const ballStart = { x: -2.0, y: 3.34, z: 94.8 };
+  ball.position.set(ballStart.x, ballStart.y, ballStart.z);
+  group.add(ball);
+  const ballProp = {
+    id: 'level5-braidel-rally-ball',
+    group: ball,
+    origin: { ...ballStart },
+    spawnLift: 0,
+    mass: 0.85,
+    gravityScale: 0.07,
+    linearDamping: 0.22,
+    angularDamping: 0.5,
+    friction: 0.24,
+    restitution: 0.68,
+    ccdEnabled: true,
+    canSleep: false
+  };
+  solids.push({
+    x: ballStart.x, y: ballStart.y, z: ballStart.z,
+    sx: 0.25, sy: 0.25, sz: 0.25,
+    shape: 'ball', radius: 0.25,
+    dynamicProp: ballProp
+  });
+  return {
+    ball, ballId: ballProp.id, ballStart: { ...ballStart }, opponent,
+    ballInFlight: false, flightElapsed: 0, returning: false,
+    returnElapsed: 0, returnStart: { ...ballStart }, lastSuccess: false, rallies: 0
+  };
+}
+
+function buildFinishDoor({ group, box }) {
+  const door = new THREE.Group();
+  door.name = 'PrincessFinalGate';
+  door.position.set(0, 3.0, 126.2);
+  group.add(door);
+  box('PrincessGateLeft', -1.75, 1.45, 0, 0.18, 3.1, 0.26, '#9b789e', false, 0.28, door);
+  box('PrincessGateRight', 1.75, 1.45, 0, 0.18, 3.1, 0.26, '#9b789e', false, 0.28, door);
+  box('PrincessGateTop', 0, 3.0, 0, 3.65, 0.20, 0.28, '#e8ca91', false, 0.38, door);
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(3.20, 2.85, 0.20),
+    makeMat('#8e789f', 0.36, 0.34, '#a87fc7'));
+  panel.name = 'PrincessFinalGate-Panel';
+  panel.position.set(0, 1.45, 0);
+  door.add(panel);
+  return { door, panel, opened: false };
+}
+
+export function buildObservatoryLevel5({ group, box, solids }) {
+  group.userData.disposeTextures = group.userData.disposeTextures || [];
+  group.userData.disposeMaterials = group.userData.disposeMaterials || [];
+  group.userData.disposeGeometries = group.userData.disposeGeometries || [];
+  group.userData.disposed = false;
+
+  addPhotoGallery({ group, box });
+  const symbolPuzzle = buildRunePuzzle({ group, box });
+  const mosaic = buildMosaic({ group, box });
+  const weightPuzzle = buildWeightPuzzle({ group, box, solids });
+  const lightPuzzle = buildLightPuzzle({ group, box });
+  const clockPuzzle = buildClockPuzzle({ group, box });
+  const princess = buildPrincess({ group, box });
+  const rally = buildRally({ group, box, solids });
+  const finishDoor = buildFinishDoor({ group, box });
+
+  const rewardDrops = {
+    scepter: makeArtifact('scepter'),
+    ring: makeArtifact('ring'),
+    crown: makeArtifact('crown'),
+    armor: makeArtifact('armor')
+  };
+  const dropPositions = {
+    scepter: [0, FLOOR_Y + 1.12, 18.0],
+    ring: [0, FLOOR_Y + 1.12, 36.0],
+    crown: [0, FLOOR_Y + 1.12, 54.0],
+    armor: [4.6, 4.18, 89.0]
+  };
+  for (const [kind, artifact] of Object.entries(rewardDrops)) {
+    artifact.visible = false;
+    artifact.position.set(...dropPositions[kind]);
+    group.add(artifact);
+  }
+
+  return {
+    type: 'observatory',
+    completed: false,
+    phase: 'gallery',
+    symbolPuzzle,
+    mosaic,
+    weightPuzzle,
+    lightPuzzle,
+    clockPuzzle,
+    princess,
+    rally,
+    finishDoor,
+    rewardDrops,
+    dropPositions,
+    pendingItem: null,
+    pickupNextPhase: null,
+    collected: new Set(),
+    installed: new Set(),
+    promptTick: 0
+  };
+}
+
+function nearestByXZ(items, position, getPoint, radius) {
+  let nearest = null;
+  let bestDistance = radius;
+  for (const item of items) {
+    const point = getPoint(item);
+    if (!point) continue;
+    const distance = Math.hypot(position.x - point.x, position.z - point.z);
+    if (distance < bestDistance) {
+      nearest = item;
+      bestDistance = distance;
+    }
+  }
+  return nearest;
+}
+
+function updateMosaic(s, position, dt, consumeInteract, setPrompt) {
+  const mosaic = s.mosaic;
+  if (mosaic.swapAnimation) {
+    const animation = mosaic.swapAnimation;
+    animation.elapsed += dt;
+    const t = clamp01(animation.elapsed / animation.duration);
+    const eased = t * t * (3 - 2 * t);
+    animation.first.mesh.position.lerpVectors(animation.firstStart, animation.firstTarget, eased);
+    animation.second.mesh.position.lerpVectors(animation.secondStart, animation.secondTarget, eased);
+    if (t >= 1) {
+      animation.first.mesh.position.copy(animation.firstTarget);
+      animation.second.mesh.position.copy(animation.secondTarget);
+      mosaic.swapAnimation = null;
+      mosaic.isSolved = mosaic.tiles.every((tile) => tile.pieceId === tile.cellIndex);
+      if (mosaic.isSolved) {
+        mosaic.selectionRing.visible = false;
+        s.phase = 'weights';
+        setPrompt('Mosaik pulih! Gerbang ruang keseimbangan terbuka. Dorong tiga kubus berat ke pelat emas.');
+        return;
+      }
+    }
+    return;
+  }
+
+  if (consumeInteract()) {
+    const tile = nearestByXZ(mosaic.tiles, position, (entry) => entry.mesh.position, 1.62);
+    if (!tile) {
+      mosaic.selectedTile = null;
+      mosaic.selectionRing.visible = false;
+      setPrompt('Memory Mosaic: dekati salah satu kubus gambar, lalu tekan INTERAKSI.');
+      return;
+    }
+    if (!mosaic.selectedTile) {
+      mosaic.selectedTile = tile;
+      mosaic.selectionRing.visible = true;
+      mosaic.selectionRing.position.set(tile.mesh.position.x, tile.mesh.position.y + 0.12, tile.mesh.position.z);
+      setPrompt('Kubus dipilih. Dekati kubus pasangan lalu tekan INTERAKSI untuk menukar tempatnya.');
+      return;
+    }
+    if (mosaic.selectedTile === tile) {
+      mosaic.selectedTile = null;
+      mosaic.selectionRing.visible = false;
+      setPrompt('Pilihan kubus dibatalkan. Pilih potongan lain yang ingin dipindahkan.');
+      return;
+    }
+    const first = mosaic.selectedTile;
+    const firstCell = first.cellIndex;
+    const secondCell = tile.cellIndex;
+    first.cellIndex = secondCell;
+    tile.cellIndex = firstCell;
+    first.mesh.userData.cellIndex = secondCell;
+    tile.mesh.userData.cellIndex = firstCell;
+    mosaic.swapAnimation = {
+      first,
+      second: tile,
+      firstStart: first.mesh.position.clone(),
+      secondStart: tile.mesh.position.clone(),
+      firstTarget: new THREE.Vector3(mosaic.cells[secondCell].x, mosaic.cells[secondCell].y, mosaic.cells[secondCell].z),
+      secondTarget: new THREE.Vector3(mosaic.cells[firstCell].x, mosaic.cells[firstCell].y, mosaic.cells[firstCell].z),
+      elapsed: 0,
+      duration: 0.26
+    };
+    mosaic.selectedTile = null;
+    mosaic.selectionRing.visible = false;
+    setPrompt('Kubus bergeser. Cocokkan semua sambungan gambar hingga mosaik pulih.');
+    return;
+  }
+
+  if (mosaic.selectedTile) {
+    mosaic.selectionRing.position.set(
+      mosaic.selectedTile.mesh.position.x,
+      mosaic.selectedTile.mesh.position.y + 0.12,
+      mosaic.selectedTile.mesh.position.z
+    );
+    setPrompt('Kubus terpilih. Cari pasangan potongan gambar dan tekan INTERAKSI.');
+  } else {
+    setPrompt('The Memory Mosaic: geser 12 kubus gambar hingga menjadi satu foto utuh. Gunakan INTERAKSI pada dua kubus untuk menukar posisi.');
+  }
+}
+
+function updateRally(system, s, position, dt, consumeInteract, setPrompt) {
+  const rally = s.rally;
+  const ball = rally.ball.position;
+  const target = rally.opponent.position;
+  const record = system.activePhysics?.dynamicPropsById?.get(rally.ballId);
+  const step = Math.min(0.05, Math.max(0, dt));
+
+  if (rally.ballInFlight) {
+    rally.flightElapsed += step;
+    const arrived = ball.z >= target.z - 1.0 && Math.abs(ball.x - target.x) <= 1.9;
+    if (!arrived && rally.flightElapsed <= 2.8) {
+      setPrompt('Braidel Rally: bola menuju lawan. Reli berhasil ' + rally.rallies + '/3.');
+      return;
+    }
+    rally.lastSuccess = arrived || (ball.z > target.z - 1.7 && Math.abs(ball.x - target.x) <= 2.45);
+    rally.ballInFlight = false;
+    rally.returning = true;
+    rally.returnElapsed = 0;
+    rally.returnStart = { x: ball.x, y: ball.y, z: ball.z };
+    record?.body?.setLinvel({ x: 0, y: 0, z: 0 }, true);
+    record?.body?.setAngvel({ x: 0, y: 0, z: 0 }, true);
+  }
+
+  if (rally.returning) {
+    rally.returnElapsed += step;
+    const t = clamp01(rally.returnElapsed / 0.72);
+    const eased = t * t * (3 - 2 * t);
+    const start = rally.returnStart;
+    const origin = rally.ballStart;
+    const next = {
+      x: THREE.MathUtils.lerp(start.x, origin.x, eased),
+      y: THREE.MathUtils.lerp(start.y, origin.y, eased) + Math.sin(t * Math.PI) * 0.62,
+      z: THREE.MathUtils.lerp(start.z, origin.z, eased)
+    };
+    rally.ball.position.set(next.x, next.y, next.z);
+    if (record) {
+      record.body.setTranslation(next, true);
+      record.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      record.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+    }
+    if (t >= 1) {
+      rally.returning = false;
+      rally.ball.position.set(origin.x, origin.y, origin.z);
+      if (record) {
+        record.body.setTranslation(origin, true);
+        record.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        record.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      }
+      if (rally.lastSuccess) rally.rallies += 1;
+      if (rally.rallies >= 3) {
+        s.phase = 'princess';
+        setPrompt('Tiga reli berhasil! Gerbang menuju Putri Raja terbuka. Bawa empat perlengkapan ke patung kerajaan.');
+        return;
+      }
+      setPrompt(rally.lastSuccess
+        ? 'Reli berhasil! ' + rally.rallies + '/3. Bola kembali, lanjutkan.'
+        : 'Bola meleset. Coba lagi dan arahkan ke sisi Braidel.');
+    }
+    return;
+  }
+
+  if (Math.hypot(position.x - ball.x, position.z - ball.z) <= 1.6) {
+    setPrompt('Braidel Last Rally: dekati bola dan tekan INTERAKSI untuk memukul ke arah Braidel. Target ' + rally.rallies + '/3.');
+    if (consumeInteract() && record) {
+      record.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      record.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      const dx = target.x - ball.x;
+      const dz = target.z - ball.z;
+      record.body.applyImpulse({
+        x: THREE.MathUtils.clamp(dx, -2.6, 2.6) * 1.25,
+        y: 0.62,
+        z: Math.max(3.4, dz * 0.92)
+      }, true);
+      rally.ballInFlight = true;
+      rally.flightElapsed = 0;
+    }
+  } else {
+    setPrompt('Braidel Last Rally: dekati bola di lapangan dan menangkan tiga reli.');
+  }
+}
+
+export function updateObservatoryLevel5(system, level, position, dt) {
+  const s = system.special;
+  if (!s) return false;
+  const step = Math.min(0.05, Math.max(0, Number(dt) || 0));
+  if (s.completed) {
+    if (s.finishDoor?.opened) {
+      s.finishDoor.panel.position.y = THREE.MathUtils.damp(s.finishDoor.panel.position.y, 4.5, 2.3, step);
+    }
+    return false;
+  }
+  const near = (point, radius = 1.6) => Math.hypot(position.x - point.x, position.z - point.z) <= radius;
+  const consumeInteract = () => {
+    const value = Boolean(system.game.input?.consumeInteract?.());
+    if (value) system.game.input?.consumeLongInteract?.();
+    return value;
+  };
+  const setPrompt = (message) => system.setPrompt(message);
+  const revealItem = (kind, nextPhase, message) => {
+    s.pendingItem = kind;
+    s.pickupNextPhase = nextPhase;
+    s.rewardDrops[kind].visible = true;
+    s.phase = 'pickup';
+    setPrompt(message);
+  };
+
+  if (s.phase === 'gallery') {
+    if (near({ x: 0, z: -18.0 }, 7.5)) {
+      s.phase = 'symbols';
+      setPrompt('Memory Gallery selesai. Prasasti di depan menyimpan urutan simbol kerajaan.');
+    } else {
+      setPrompt('Memory Gallery: jelajahi foto-foto kenangan yang dipajang di sepanjang observatorium. Ikuti jembatan menuju prasasti kerajaan.');
+      return true;
+    }
+  }
+
+  if (s.phase === 'symbols') {
+    const puzzle = s.symbolPuzzle;
+    const nearest = nearestByXZ(puzzle.runes, position, (rune) => rune.position, 1.75);
+    if (nearest) {
+      setPrompt('The Silent Symbols: petunjuk di prasasti menunjukkan BINTANG, BULAN, lalu MATAHARI. Dekati simbol dan tekan INTERAKSI.');
+      if (consumeInteract()) {
+        const expected = puzzle.sequence[puzzle.index];
+        if (nearest.symbol === expected) {
+          nearest.solved = true;
+          nearest.mesh.children[1].material.emissiveIntensity = 1.25;
+          puzzle.index++;
+          if (puzzle.index >= puzzle.sequence.length) {
+            s.phase = 'mosaic';
+            setPrompt('Urutan prasasti benar! Gerbang Memory Mosaic terbuka.');
+          } else {
+            setPrompt('Simbol benar. Lanjutkan urutan ' + (puzzle.index + 1) + '/3.');
+          }
+        } else {
+          puzzle.index = 0;
+          for (const rune of puzzle.runes) {
+            rune.solved = false;
+            rune.mesh.children[1].material.emissiveIntensity = 0.48;
+          }
+          setPrompt('Urutan salah. Prasasti meredup, amati petunjuk dan coba dari awal.');
+        }
+      }
+    } else {
+      setPrompt('The Silent Symbols: amati prasasti bercahaya, lalu aktifkan simbol BINTANG, BULAN, dan MATAHARI secara berurutan.');
+    }
+    return true;
+  }
+
+  if (s.phase === 'mosaic') {
+    updateMosaic(s, position, step, consumeInteract, setPrompt);
+    return true;
+  }
+
+  if (s.phase === 'weights') {
+    const allPlaced = s.weightPuzzle.crates.every((crate) => {
+      const record = system.activePhysics?.dynamicPropsById?.get(crate.id);
+      const point = record?.body?.translation?.() || record?.group?.position;
+      return point && Math.hypot(point.x - crate.target.x, point.z - crate.target.z) <= 0.78;
+    });
+    if (allPlaced) {
+      s.weightPuzzle.completed = true;
+      revealItem('scepter', 'light',
+        'Keseimbangan sempurna! Tongkat Kerajaan muncul. Dekati dan tekan INTERAKSI untuk mengambilnya.');
+    } else {
+      const placed = s.weightPuzzle.crates.filter((crate) => {
+        const record = system.activePhysics?.dynamicPropsById?.get(crate.id);
+        const point = record?.body?.translation?.() || record?.group?.position;
+        return point && Math.hypot(point.x - crate.target.x, point.z - crate.target.z) <= 0.78;
+      }).length;
+      setPrompt('Tongkat Kerajaan: “Menopang sang putri berdiri lebih teguh, dalam genggaman setianya.” Dorong tiga peti ke lingkaran emas. Pelat aktif ' + placed + '/3.');
+    }
+    return true;
+  }
+
+  if (s.phase === 'pickup') {
+    const kind = s.pendingItem;
+    const artifact = s.rewardDrops[kind];
+    const point = artifact.position;
+    if (near(point, 1.85)) {
+      setPrompt('Perlengkapan ditemukan: ' + ({
+        scepter: 'Tongkat Kerajaan',
+        ring: 'Cincin Permata',
+        crown: 'Mahkota Emas',
+        armor: 'Baju Zirah'
+      }[kind]) + '. Tekan INTERAKSI untuk mengambil.');
+      if (consumeInteract()) {
+        artifact.visible = false;
+        s.collected.add(kind);
+        const next = s.pickupNextPhase;
+        s.pendingItem = null;
+        s.pickupNextPhase = null;
+        s.phase = next;
+        setPrompt('Perlengkapan tersimpan. Lanjutkan ke ruang teka-teki berikutnya.');
+      }
+    } else {
+      setPrompt('Perlengkapan kerajaan telah muncul. Dekati cahaya penanda untuk mengambilnya.');
+    }
+    return true;
+  }
+
+  if (s.phase === 'light') {
+    const puzzle = s.lightPuzzle;
+    const nearest = nearestByXZ(puzzle.mirrors, position, (mirror) => mirror.root.position, 1.9);
+    if (nearest) {
+      setPrompt('Cincin Permata: “Memeluk tanpa lengan, melingkar tanpa ujung.” Putar tiga prisma hingga penunjuknya sejajar. Tekan INTERAKSI untuk memutar prisma.');
+      if (consumeInteract()) {
+        nearest.step = (nearest.step + 1) % 4;
+        nearest.root.rotation.y = nearest.step * Math.PI * 0.5;
+        const solved = puzzle.mirrors.every((mirror) => mirror.step === mirror.targetStep);
+        if (solved) {
+          puzzle.complete = true;
+          revealItem('ring', 'clockwork',
+            'Cahaya menyatu! Cincin Permata muncul di altar. Ambil sebelum melanjutkan.');
+        } else {
+          setPrompt('Prisma berputar. Periksa lagi arah ketiga pantulan cahaya.');
+        }
+      }
+    } else {
+      setPrompt('Cincin Permata: “Memeluk tanpa lengan, melingkar tanpa ujung.” Amati jalur cahaya, lalu putar tiga prisma hingga penunjuk masing-masing cocok.');
+    }
+    return true;
+  }
+
+  if (s.phase === 'clockwork') {
+    const puzzle = s.clockPuzzle;
+    puzzle.elapsed += step;
+    puzzle.pendulum.rotation.z = Math.sin(puzzle.elapsed * 1.65) * 0.48;
+    const nearest = nearestByXZ(puzzle.gears, position, (gear) => gear.root.position, 2.0);
+    if (nearest) {
+      setPrompt('Mahkota Emas: “Bertahta di puncak kepala, lambang kemuliaan sang putri.” Putar roda gigi hingga penanda emas sejajar. Tekan INTERAKSI untuk memutar roda.');
+      if (consumeInteract()) {
+        nearest.step = (nearest.step + 1) % 4;
+        nearest.root.rotation.y = nearest.step * Math.PI * 0.5;
+        const solved = puzzle.gears.every((gear) => gear.step === gear.targetStep);
+        if (solved) {
+          puzzle.complete = true;
+          revealItem('crown', 'labyrinth',
+            'Mekanisme jam selaras! Mahkota Emas ditemukan di puncak jam. Ambil untuk membuka jalur labirin.');
+        } else {
+          setPrompt('Satu roda bergeser. Dengarkan irama mekanisme dan cocokkan seluruh penanda.');
+        }
+      }
+    } else {
+      setPrompt('Mahkota Emas: “Bertahta di puncak kepala, lambang kemuliaan sang putri.” Amati pendulum dan tiga roda gigi, lalu cocokkan penanda emas.');
+    }
+    return true;
+  }
+
+  if (s.phase === 'labyrinth') {
+    const exit = { x: 4.6, z: 89.0 };
+    if (near(exit, 2.2) && Math.abs(position.y - 3.0) <= 0.62) {
+      revealItem('armor', 'rally',
+        'Labirin tertaklukkan! Baju Zirah ditemukan. Ambil perlengkapan terakhir sebelum menantang Braidel.');
+    } else {
+      setPrompt('Baju Zirah: “Menyelimuti tubuh sekeras baja, melindungi kehormatan.” Lewati papan fase yang berganti, jembatan bergerak, dan dua batang hologram. Capai dek keluar untuk menemukannya.');
+    }
+    return true;
+  }
+
+  if (s.phase === 'rally') {
+    updateRally(system, s, position, step, consumeInteract, setPrompt);
+    return true;
+  }
+
+  if (s.phase === 'princess') {
+    const statuePoint = { x: s.princess.statue.position.x, z: s.princess.statue.position.z };
+    if (near(statuePoint, 3.5)) {
+      const nextItem = s.princess.installOrder.find((kind) => !s.installed.has(kind));
+      if (!nextItem) {
+        s.phase = 'complete';
+        s.completed = true;
+      } else {
+        setPrompt('The Princess of Forgotten Kingdom: pasangkan ' + ({
+          ring: 'Cincin Permata',
+          crown: 'Mahkota Emas',
+          scepter: 'Tongkat Kerajaan',
+          armor: 'Baju Zirah'
+        }[nextItem]) + ' pada patung. Tekan INTERAKSI.');
+        if (consumeInteract()) {
+          if (!s.collected.has(nextItem)) {
+            setPrompt('Item belum ditemukan: ' + nextItem + '.');
+          } else {
+            const artifact = s.rewardDrops[nextItem];
+            const anchor = s.princess.anchors[nextItem];
+            artifact.visible = true;
+            anchor.add(artifact);
+            artifact.position.set(0, 0, 0);
+            artifact.scale.setScalar(nextItem === 'armor' ? 0.88 : 0.78);
+            s.installed.add(nextItem);
+            setPrompt('Berhasil dipasang: ' + ({
+              ring: 'Cincin Permata',
+              crown: 'Mahkota Emas',
+              scepter: 'Tongkat Kerajaan',
+              armor: 'Baju Zirah'
+            }[nextItem]) + '.');
+            if (s.installed.size >= 4) {
+              s.completed = true;
+              s.phase = 'complete';
+              s.finishDoor.opened = true;
+              setPrompt('SANG PUTRI TELAH DIPULIHKAN! Gerbang FINISH kerajaan terbuka.');
+              const plate = system.activeArena?.userData?.finishPressurePlate;
+              if (plate) plate.visible = true;
+              if (system.questObject) system.questObject.visible = true;
+            }
+          }
+        }
+      }
+    } else {
+      setPrompt('Tiga reli dimenangkan. Lanjutkan ke singgasana Putri Raja dan pasangkan empat perlengkapan kerajaan.');
+    }
+    return true;
+  }
+
+  if (s.phase === 'complete') {
+    s.finishDoor.panel.position.y = THREE.MathUtils.damp(s.finishDoor.panel.position.y, 4.5, 2.3, step);
+    return false;
+  }
+
+  return true;
+}

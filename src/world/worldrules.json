@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "playerSpawn": { "x": -17.216117913318985, "y": 0.0775, "z": -4.682203776528315, "yaw": 3.141592653589793 },
+  "room": {
+    "theme": "cozy-pastel-gamer",
+    "renderStyle": "low-poly",
+    "matcapResolution": 256,
+    "palette": {
+      "wall": "#f2d9d4",
+      "wallShade": "#e9bec7",
+      "sage": "#a6cbb6",
+      "sageDark": "#718f7d",
+      "cream": "#fff3de",
+      "wood": "#c89069",
+      "woodDark": "#88604d",
+      "coral": "#f09caa",
+      "butter": "#f4d58c",
+      "sky": "#b8dbe8",
+      "navy": "#46526a",
+      "mint": "#c8e7d6",
+      "floorA": "#f0d9d4",
+      "floorB": "#f8eadd",
+      "metal": "#9db8bd",
+      "dark": "#4f5868",
+      "pink": "#f5bdcd",
+      "blue": "#bfdfe7",
+      "lavender": "#c9b8e8",
+      "peach": "#f5c9b6"
+    },
+    "lighting": {
+      "background": "#d9c3c0",
+      "fogColor": "#d9c3c0",
+      "fogDensity": 0.0028,
+      "ambientColor": "#fff5e1",
+      "ambientIntensity": 0.62,
+      "directionalColor": "#ffe5c8",
+      "directionalIntensity": 1.7,
+      "directionalPosition": [
+        5,
+        10,
+        5
+      ],
+      "fillColor": "#d8edf5",
+      "fillIntensity": 0.34,
+      "fillPosition": [
+        -8,
+        5,
+        -10
+      ]
+    },
+    "party": {
+      "signPanel": "#fff0e1",
+      "signForeground": "#8a6570",
+      "signAccent": "#f3a8b8",
+      "string": "#8a7c7a",
+      "balloons": [
+        "#f4aebd",
+        "#f6d88d",
+        "#b8dfe7",
+        "#c9b8ef",
+        "#bfe4ce"
+      ],
+      "buttonOff": "#f4d58c",
+      "buttonOn": "#9ed4b8",
+      "buttonBase": "#8b6c6b",
+      "cake": "#f4bdca",
+      "cakeFrosting": "#fff0e1",
+      "cakeBand": "#dcb1d6",
+      "giftColors": [
+        "#f2a7b5",
+        "#bfe4d1",
+        "#b8dbe8",
+        "#eacb8a"
+      ]
+    }
+  },
+  "centralGift": {
+    "enabled": true,
+    "position": {
+      "x": 0,
+      "z": 1.0
+    },
+    "floorY": 0.095,
+    "body": {
+      "width": 3.8,
+      "height": 2.4,
+      "depth": 3.8
+    },
+    "pressurePlate": {
+      "x": 0,
+      "z": 7.3,
+      "halfWidth": 0.78,
+      "halfDepth": 0.46,
+      "minWeightKg": 0.2,
+      "dogMaxHeight": 0.62
+    },
+    "animation": {
+      "panelOpenAngle": 1.48,
+      "lidLiftHeight": 1.5,
+      "speed": 4.0,
+      "releaseDelay": 2.4
+    }
+  }
+}

@@ -1,0 +1,2142 @@
+{
+  "manifest_version": "1.0.0",
+  "project": {
+    "name": "Little Rover: Robotic Dog Shelter Simulator",
+    "root": ".",
+    "purpose": "Game 3D third-person yang dapat dimainkan dengan anjing robot prosedural dan shelter indoor bergaya kartun premium.",
+    "language": "English default UI with externalized English and Bahasa Indonesia catalogs; code comments and deployment notes remain in English.",
+    "stack": {
+      "runtime": [
+        "Three.js 0.186.1",
+        "Vanilla JavaScript ES modules",
+        "Rapier 3D 0.21.0",
+        "HTML5",
+        "CSS3",
+        "WebGL2"
+      ],
+      "tooling": [
+        "Vite 8.3.5",
+        "Node.js 20.19+ or 22.12+"
+      ],
+      "frontend_frameworks": []
+    },
+    "deployment": {
+      "script": "scripts/deploy-vps.sh",
+      "status": "not-deployed-from-this-workspace",
+      "note": "Actual VPS terminal/SSH access is not available in this workspace; never report a public URL until deploy is run and verified on the target host."
+    }
+  },
+  "instructions_for_ai": [
+    "Baca manifest.json sebelum menjelajahi kode untuk menemukan file berdasarkan tugas.",
+    "Path file selalu relatif terhadap root proyek, menggunakan slash POSIX.",
+    "Status present berarti file sudah terverifikasi ada; status planned menandai kerangka/fitur yang belum dihubungkan ke runtime. Periksa imports dan pemakaian aktual sebelum menyatakan suatu fitur aktif.",
+    "Gunakan file_lookup untuk pertanyaan berbasis fitur, kemudian baca source dari path yang cocok.",
+    "Setelah file dibuat/dihapus/dipindah, perbarui manifest supaya indeks tetap sesuai folder.",
+    "Jangan menebak deployment status, alamat publik atau port. Periksa hasil skrip pada VPS asli.",
+    "Jangan menyimpan secret, password, access token, private key atau data sensitif di manifest."
+  ],
+  "directories": [
+    {
+      "path": "src",
+      "purpose": "Kode aplikasi browser."
+    },
+    {
+      "path": "src/core",
+      "purpose": "Renderer, scene, asset loader dan quality settings."
+    },
+    {
+      "path": "src/world",
+      "purpose": "Shelter, arsitektur, props, dekorasi dan warna."
+    },
+    {
+      "path": "src/character",
+      "purpose": "Model dan animasi anjing robot."
+    },
+    {
+      "path": "src/physics",
+      "purpose": "Rapier world dan collision controller."
+    },
+    {
+      "path": "src/controls",
+      "purpose": "Input keyboard/touch dan third-person camera."
+    },
+    {
+      "path": "src/systems",
+      "purpose": "Movement dan performance telemetry."
+    },
+    {
+      "path": "src/ui",
+      "purpose": "HUD, pengaturan dan loading/error feedback."
+    },
+    {
+      "path": "src/styles",
+      "purpose": "CSS responsif."
+    },
+    {
+      "path": "src/character/anim",
+      "purpose": "Kerangka animasi interaksi karakter; belum aktif di runtime."
+    },
+    {
+      "path": "src/character/npc",
+      "purpose": "Kerangka NPC slime dan wizard; modul masih kosong."
+    },
+    {
+      "path": "src/world/object",
+      "purpose": "Kerangka objek kado/penjara-kado dan aset cincin emas."
+    },
+    {
+      "path": "src/world/sound",
+      "purpose": "Sistem BGM home/level dan efek suara UI aktif; integrasi efek gameplay lain disiapkan bertahap."
+    },
+    {
+      "path": "matcaps",
+      "purpose": "Koleksi tekstur legacy untuk eksperimen PopClay; tidak dimuat oleh runtime aktif."
+    },
+    {
+      "path": "scripts",
+      "purpose": "Pemeriksaan lokal dan deployment VPS."
+    },
+    {
+      "path": "src/localization",
+      "purpose": "JSON locale catalogues for translating visible game strings without changing gameplay logic."
+    },
+    {
+      "path": "public",
+      "purpose": "Static assets copied verbatim by Vite into the production output."
+    },
+    {
+      "path": "public/splash",
+      "purpose": "Intro video asset served before the game loading screen."
+    }
+  ],
+  "files": [
+    {
+      "path": ".gitignore",
+      "status": "present",
+      "type": "configuration",
+      "purpose": "Mencegah dependency terunduh, build output, rahasia lokal dan file sistem dimasukkan ke repository/archive secara tidak sengaja.",
+      "description": "Aturan ignore untuk node_modules, dist, file environment, log dan metadata sistem operasi.",
+      "contents": [
+        "node_modules exclusion",
+        "dist exclusion",
+        "environment secret exclusion",
+        "log and OS-file exclusion"
+      ],
+      "dependencies": [],
+      "tags": [
+        "gitignore",
+        "repository-hygiene",
+        "secrets",
+        "build-output"
+      ]
+    },
+    {
+      "path": "PLAN.md",
+      "status": "present",
+      "type": "project-plan",
+      "purpose": "Rancangan dan kriteria penerimaan proyek",
+      "description": "Rancangan dan kriteria penerimaan proyek: stack, gameplay, desain shelter, arsitektur, validasi, keamanan deployment, dan status yang belum boleh diasumsikan.",
+      "contents": [
+        "visi",
+        "stack",
+        "kontrol",
+        "desain environment",
+        "arsitektur",
+        "kriteria penerimaan",
+        "batas deployment"
+      ],
+      "dependencies": [],
+      "tags": [
+        "project-plan",
+        "PLAN",
+        "md"
+      ]
+    },
+    {
+      "path": "README.md",
+      "status": "present",
+      "type": "documentation",
+      "purpose": "Panduan instalasi, perintah dev/build, kontrol, arsitektur modul, server produksi, deploy VPS dan batas pengujian",
+      "description": "Panduan instalasi, perintah dev/build, kontrol, arsitektur modul, server produksi, deploy VPS dan batas pengujian.",
+      "contents": [
+        "setup",
+        "kontrol keyboard/touch",
+        "arsitektur",
+        "build",
+        "deployment",
+        "troubleshooting"
+      ],
+      "dependencies": [],
+      "tags": [
+        "documentation",
+        "README",
+        "md"
+      ]
+    },
+    {
+      "path": "index.html",
+      "status": "present",
+      "type": "html-entry",
+      "purpose": "Shell HTML responsif dengan canvas game, HUD, kontrol touch, panel pengaturan grafis dan Developer Mode, layar pemuatan, error screen dan entry module",
+      "description": "Shell HTML responsif dengan canvas game, HUD, kontrol touch, panel pengaturan, layar pemuatan, error screen dan entry module.",
+      "contents": [
+        "game canvas",
+        "header HUD",
+        "activity display",
+        "touch controls",
+        "settings panel",
+        "Developer Mode switch",
+        "Advanced Settings with FPS and Morning Check switches",
+        "independent in-game backpack toggle, 12-slot inventory, and conditional field drop control",
+        "no toast element",
+        "loading/error UI",
+        "script entry"
+      ],
+      "dependencies": [],
+      "tags": [
+        "html-entry",
+        "index",
+        "html"
+      ]
+    },
+    {
+      "path": "manifest.json",
+      "status": "present",
+      "type": "project-index",
+      "purpose": "Indeks mesin untuk menemukan kode berdasarkan fungsi, isi, dependensi dan kata kunci.",
+      "description": "File ini sendiri mendeskripsikan proyek, instruksi navigasi AI, direktori, setiap source file, dan lookup fitur ke path yang relevan.",
+      "contents": [
+        "metadata",
+        "instructions_for_ai",
+        "directories",
+        "files",
+        "file_lookup",
+        "conventions"
+      ],
+      "dependencies": [],
+      "tags": [
+        "project-index",
+        "manifest",
+        "ai",
+        "navigation",
+        "metadata"
+      ]
+    },
+    {
+      "path": "package.json",
+      "status": "present",
+      "type": "configuration",
+      "purpose": "Metadata npm, script development/build/check/start dan versi terkunci untuk Three.js, Rapier serta Vite",
+      "description": "Metadata npm, script development/build/check/start dan versi terkunci untuk Three.js, Rapier serta Vite.",
+      "contents": [
+        "dependencies",
+        "devDependencies",
+        "npm scripts",
+        "dukungan Node"
+      ],
+      "dependencies": [],
+      "tags": [
+        "configuration",
+        "package",
+        "json"
+      ]
+    },
+    {
+      "path": "scripts/check-project.mjs",
+      "status": "present",
+      "type": "validation-script",
+      "purpose": "Memeriksa path wajib, indeks manifest, metadata npm, local imports, hook UI, layout touch dan keseimbangan sintaks blok CSS.",
+      "description": "Pemeriksaan statis untuk path, JSON manifest, metadata package, import lokal, hook HTML, layout tombol mobile serta keseimbangan braces/string/comment di main.css dan touch-ff.css.",
+      "contents": [
+        "required file check",
+        "manifest validation",
+        "ES module import validation",
+        "HTML hook validation",
+        "touch layout assertions",
+        "HUD-hidden pickup/drop availability, camera gesture passthrough, and dropped-item persistence assertions",
+        "toast removal assertions",
+        "CSS brace/string/comment validation"
+      ],
+      "dependencies": [
+        "node:fs/promises",
+        "node:path",
+        "node:url"
+      ],
+      "tags": [
+        "validation-script",
+        "scripts",
+        "check",
+        "project"
+      ]
+    },
+    {
+      "path": "scripts/deploy-vps.sh",
+      "status": "present",
+      "type": "deployment-script",
+      "purpose": "Script deploy Linux/VPS yang inspeksi service/port, memilih port kosong, menolak overwrite, membangun production app, membuat service systemd terisolasi dan cek HTTP/asset",
+      "description": "Script deploy VPS Linux yang memeriksa OS/service/port dan firewall secara read-only, memilih port free, mencegah overwrite, build production, membuat systemd service terisolasi dan memverifikasi HTTP/asset.",
+      "contents": [
+        "host and running-service inspection",
+        "listening TCP ports",
+        "read-only UFW/nftables/iptables inspection",
+        "free TCP port selection",
+        "safe isolated project copy",
+        "npm install/check/build",
+        "hardened systemd service",
+        "single-port UFW rule only if active",
+        "HTTP and JavaScript asset checks",
+        "external firewall warning"
+      ],
+      "dependencies": [],
+      "tags": [
+        "deployment-script",
+        "scripts",
+        "deploy",
+        "vps",
+        "sh"
+      ]
+    },
+    {
+      "path": "server.mjs",
+      "status": "present",
+      "type": "production-server",
+      "purpose": "Server HTTP statis production dengan pemeriksaan path, MIME type, metode GET/HEAD, cache, ETag, security headers dan shutdown graceful",
+      "description": "Server HTTP statis production dengan pemeriksaan path, MIME type, metode GET/HEAD, cache, ETag, security headers dan shutdown graceful.",
+      "contents": [
+        "static dist serving",
+        "path traversal guard",
+        "MIME types",
+        "CSP",
+        "cache headers",
+        "server lifecycle"
+      ],
+      "dependencies": [
+        "node:fs",
+        "node:fs/promises",
+        "node:http",
+        "node:path",
+        "node:url"
+      ],
+      "tags": [
+        "production-server",
+        "server"
+      ]
+    },
+    {
+      "path": "src/character/DogAnimator.js",
+      "status": "present",
+      "type": "animation-system",
+      "purpose": "Animasi prosedural delta-time untuk idle, walk, run, jump, air dan landing pada kaki, kepala, badan, telinga, ekor dan sensor",
+      "description": "Animasi prosedural delta-time untuk idle, walk, run, jump, air dan landing dengan crossfade antar-state pada kaki, kepala, badan, telinga, ekor dan sensor.",
+      "contents": [
+        "state selection",
+        "real state crossfade",
+        "gait cycles",
+        "jump/air poses",
+        "landing state and compression",
+        "tail motion",
+        "sensor pulse"
+      ],
+      "dependencies": [],
+      "tags": [
+        "animation-system",
+        "character",
+        "DogAnimator"
+      ]
+    },
+    {
+      "path": "src/character/DogRig.js",
+      "status": "present",
+      "type": "character-model",
+      "purpose": "Model anjing robot quadruped orisinal dari rounded geometry, armour, joint, mata bercahaya, sensor, kaki artikulasi, telinga dan ekor",
+      "description": "Model anjing robot quadruped orisinal dari rounded geometry, armour, joint, mata bercahaya, sensor, kaki artikulasi, telinga dan ekor.",
+      "contents": [
+        "body/head geometry",
+        "material set",
+        "articulated legs",
+        "ears",
+        "tail",
+        "glowing optics",
+        "shader sensor"
+      ],
+      "dependencies": [
+        "three",
+        "three/addons/geometries/RoundedBoxGeometry.js"
+      ],
+      "tags": [
+        "character-model",
+        "character",
+        "DogRig"
+      ]
+    },
+    {
+      "path": "src/character/RobotDog.js",
+      "status": "present",
+      "type": "character-wrapper",
+      "purpose": "Entity pemain yang menggabungkan rig, animator, status gerakan dan bayangan ground yang ikut berubah saat melompat",
+      "description": "Entity pemain yang menggabungkan rig, animator, status gerakan dan bayangan ground yang ikut berubah saat melompat.",
+      "contents": [
+        "player group",
+        "rig",
+        "animation API",
+        "jump shadow"
+      ],
+      "dependencies": [
+        "./DogAnimator.js",
+        "./DogRig.js",
+        "three"
+      ],
+      "tags": [
+        "character-wrapper",
+        "character",
+        "RobotDog"
+      ]
+    },
+    {
+      "path": "src/controls/Input.js",
+      "status": "present",
+      "type": "input-system",
+      "purpose": "Menerjemahkan keyboard, drag pointer, wheel dan virtual controls touchscreen menjadi input gerak, sprint, jump dan orbit",
+      "description": "Menerjemahkan keyboard, drag pointer, wheel dan virtual controls touchscreen menjadi input gerak, sprint, jump dan orbit.",
+      "contents": [
+        "WASD/arrows",
+        "Space",
+        "Shift",
+        "pointer drag",
+        "wheel zoom",
+        "touch joystick",
+        "touch action"
+      ],
+      "dependencies": [
+        "../core/Localization.js"
+      ],
+      "tags": [
+        "input-system",
+        "controls",
+        "Input"
+      ]
+    },
+    {
+      "path": "src/controls/ThirdPersonCamera.js",
+      "status": "present",
+      "type": "camera-system",
+      "purpose": "Kamera third-person MMORPG dengan follow smoothing, orbit yaw/pitch, zoom, camera-relative move vectors dan raycast obstacle avoidance",
+      "description": "Kamera third-person MMORPG dengan follow smoothing, orbit yaw/pitch, zoom, camera-relative move vectors dan raycast obstacle avoidance.",
+      "contents": [
+        "follow",
+        "orbit",
+        "zoom",
+        "movement basis",
+        "wall avoidance"
+      ],
+      "dependencies": [
+        "three"
+      ],
+      "tags": [
+        "camera-system",
+        "controls",
+        "ThirdPersonCamera"
+      ]
+    },
+    {
+      "path": "src/core/AssetLoader.js",
+      "status": "present",
+      "type": "javascript-module",
+      "purpose": "Helper untuk memuat texture/model lokal, status loader, CanvasTexture signage prosedural dan pelepasan resource",
+      "description": "Helper untuk memuat texture/model lokal, status loader, CanvasTexture signage prosedural dan pelepasan resource.",
+      "contents": [
+        "TextureLoader",
+        "GLTFLoader",
+        "label texture",
+        "resource disposal"
+      ],
+      "dependencies": [
+        "three",
+        "three/addons/loaders/GLTFLoader.js"
+      ],
+      "tags": [
+        "javascript-module",
+        "core",
+        "AssetLoader"
+      ]
+    },
+    {
+      "path": "src/core/PopClay.js",
+      "status": "present",
+      "type": "rendering-material-system",
+      "purpose": "Modul eksperimen/legacy Pop Clay berbasis MatCap dan palet HSL; tidak diimpor oleh runtime aktif.",
+      "description": "Berisi helper pemuatan MatCap dan factory material warna ulang tahun, tetapi scene aktif saat ini memakai native PBR floor override dari Renderer.js.",
+      "contents": [
+        "single shared grayscale MatCap",
+        "MeshMatcapMaterial factory",
+        "elegant birthday-party HSL palette",
+        "turquoise platform with confetti accents",
+        "instanced floor tinting",
+        "reversible material replacement"
+      ],
+      "dependencies": [
+        "three",
+        "matcaps/256/party-plastic-gloss-256px.png"
+      ],
+      "tags": [
+        "Pop Clay",
+        "MatCap",
+        "Low Profile",
+        "HSL",
+        "MeshMatcapMaterial"
+      ]
+    },
+    {
+      "path": "matcaps/256/party-plastic-gloss-256px.png",
+      "status": "optional-not-included",
+      "type": "legacy-texture-asset",
+      "purpose": "Referensi MatCap eksperimental lama, bukan dependency runtime atau build aktif.",
+      "description": "Aset legacy tidak disertakan dalam working tree/repository aktif. Renderer menggunakan native PBR sehingga file ini tidak wajib ada.",
+      "contents": [
+        "grayscale neutral surface",
+        "broad studio reflection",
+        "glossy specular streak",
+        "256x256 texture"
+      ],
+      "dependencies": [],
+      "tags": [
+        "texture",
+        "MatCap",
+        "grayscale",
+        "Low Profile"
+      ]
+    },
+    {
+      "path": "src/core/Quality.js",
+      "status": "present",
+      "type": "javascript-module",
+      "purpose": "Profil grafis Low/Medium/High untuk pixel ratio, shadow map dan bloom; deteksi preset awal sesuai perangkat.",
+      "description": "Menetapkan render scale, shadow map, draw distance dan bloom. SSAO/SMAA tidak digunakan di pipeline aktif.",
+      "contents": [
+        "quality presets",
+        "pixel ratio",
+        "shadows",
+        "bloom",
+        "draw distance",
+        "device-based default"
+      ],
+      "dependencies": [],
+      "tags": [
+        "javascript-module",
+        "core",
+        "Quality"
+      ]
+    },
+    {
+      "path": "src/core/Renderer.js",
+      "status": "present",
+      "type": "javascript-module",
+      "purpose": "Setup WebGL2 renderer, RoomEnvironment/PMREM, tone mapping, directional shadows, bloom desktop pada High, native PBR floor override, adaptive pixel ratio dan mobile pixel-ratio cap.",
+      "description": "Pipeline WebGL2 dengan MSAA, environment reflections, PBR floor untuk Low, shadow map Medium/High, bloom hanya pada desktop yang mampu, cap pixel ratio 1.0 dan jarak pandang 72 untuk layar sentuh agar biaya GPU lebih rendah. ResizeObserver menunda alokasi ulang framebuffer ketika panel Settings terbuka. SSAO/SMAA tidak dipakai.",
+      "contents": [
+        "WebGL2",
+        "PBR room reflection",
+        "tone mapping",
+        "directional shadows",
+        "native PBR floor override",
+        "High desktop bloom",
+        "adaptive pixel ratio",
+        "touch/mobile pixel-ratio cap",
+        "touch/mobile view-distance cap",
+        "defer resize observer while settings are open",
+        "resize after settings close",
+        "cleanup"
+      ],
+      "dependencies": [
+        "./Quality.js",
+        "./Scene.js",
+        "three",
+        "three/addons/environments/RoomEnvironment.js",
+        "three/addons/postprocessing/EffectComposer.js",
+        "three/addons/postprocessing/OutputPass.js",
+        "three/addons/postprocessing/RenderPass.js",
+        "three/addons/postprocessing/UnrealBloomPass.js"
+      ],
+      "tags": [
+        "javascript-module",
+        "core",
+        "Renderer"
+      ]
+    },
+    {
+      "path": "src/core/Scene.js",
+      "status": "present",
+      "type": "javascript-module",
+      "purpose": "Membentuk scene, fog, kamera perspektif, hemisphere/directional lighting dan fill/bounce lights",
+      "description": "Membentuk scene, fog, kamera perspektif, hemisphere/directional lighting dan fill/bounce lights.",
+      "contents": [
+        "scene",
+        "camera",
+        "lighting",
+        "atmosphere"
+      ],
+      "dependencies": [
+        "three"
+      ],
+      "tags": [
+        "javascript-module",
+        "core",
+        "Scene"
+      ]
+    },
+    {
+      "path": "src/main.js",
+      "status": "present",
+      "type": "javascript-entry",
+      "purpose": "Bootstrap game dengan simulasi fisika 60 Hz, render loop mengikuti refresh layar, interpolasi posisi/yaw dan FPS telemetry",
+      "description": "Membangun scene, renderer, shelter, dog, physics, input, camera dan HUD. Simulasi Rapier tetap fixed-step 60 Hz; frame counter mengukur delta render nyata dan posisi/yaw visual anjing diinterpolasi saat render lebih cepat dari simulasi. Saat panel pengaturan terbuka, loop melewati update fisika dan draw WebGL serta mereset accumulator agar scroll UI tetap responsif.",
+      "contents": [
+        "initialization",
+        "loading progress",
+        "fixed 60 Hz physics accumulator",
+        "requestAnimationFrame-based FPS telemetry",
+        "interpolated rendered dog position and yaw",
+        "high-refresh display support",
+        "pause physics and WebGL draws while settings are open",
+        "clear simulation accumulator during settings pause",
+        "birthday greeting triggered by the fully opened central gift",
+        "pause and resume gameplay while the birthday greeting is open",
+        "render loop",
+        "cleanup",
+        "startup error"
+      ],
+      "dependencies": [
+        "./character/RobotDog.js",
+        "./controls/Input.js",
+        "./controls/ThirdPersonCamera.js",
+        "./core/Quality.js",
+        "./core/Renderer.js",
+        "./core/Scene.js",
+        "./physics/PhysicsWorld.js",
+        "./systems/Movement.js",
+        "./systems/Performance.js",
+        "./ui/HUD.js",
+        "./ui/LoadingScreen.js",
+        "./world/Shelter.js",
+        "./world/greeat/WelcomeGreeting.js",
+        "./world/greeat/GiftBirthdayGreeting.js",
+        "./core/Localization.js"
+      ],
+      "tags": [
+        "javascript-entry",
+        "main"
+      ]
+    },
+    {
+      "path": "src/physics/PhysicsWorld.js",
+      "status": "present",
+      "type": "physics-system",
+      "purpose": "Menyiapkan simulasi Rapier untuk lantai, obstacles, properti dinamis yang bisa bertumpuk, pickup fisik, kinematic body dan character controller.",
+      "description": "Mengelola gravitasi, collider statis dan dinamis, kontak dan tumpukan antar-properti, serta rigid body pickup. Benda yang dijatuhkan mewarisi kecepatan dunia, mendapatkan spin awal, lalu bergerak melalui gravitasi, gesekan, restitusi dan kontak Rapier.",
+      "contents": [
+        "Rapier init and gravity",
+        "fixed colliders and movable furniture rigid bodies",
+        "collisions and stacking between dynamic bodies",
+        "dynamic loose-pickup rigid bodies with per-item friction and restitution",
+        "visual transform synchronization after physics steps",
+        "support-height raycasts for ground markers",
+        "character controller, snap-to-ground and grounded query"
+      ],
+      "dependencies": [
+        "@dimforge/rapier3d-compat"
+      ],
+      "tags": [
+        "physics-system",
+        "physics",
+        "PhysicsWorld"
+      ]
+    },
+    {
+      "path": "src/styles/main.css",
+      "status": "present",
+      "type": "stylesheet",
+      "purpose": "Desain antarmuka responsif dengan glass panels, HUD, settings, loading/error overlays, touch joystick, tombol dan layout ponsel/desktop",
+      "description": "Desain antarmuka responsif untuk HUD, settings, loading/error, touch joystick dan layout ponsel/desktop; style toast sudah dihapus.",
+      "contents": [
+        "layout",
+        "HUD style",
+        "settings",
+        "loading screen",
+        "touch controls",
+        "responsive media queries",
+        "no toast overlay styles"
+      ],
+      "dependencies": [],
+      "tags": [
+        "stylesheet",
+        "styles",
+        "main",
+        "css"
+      ]
+    },
+    {
+      "path": "src/systems/Movement.js",
+      "status": "present",
+      "type": "gameplay-system",
+      "purpose": "Kontrol gerak karakter dengan redaman eksponensial pada kecepatan horizontal untuk belok dan input analog yang halus.",
+      "description": "Kecepatan jalan 3.15 m/s dan sprint 5.6 m/s. Komponen kecepatan X/Z diredam secara eksponensial, dengan gerak udara yang tetap membawa momentum. Kecepatan dunia hasil perpindahan aktual tersedia untuk objek yang dilepaskan, sehingga pickup mempertahankan momentum saat dijatuhkan dari ekor K-09.",
+      "contents": [
+        "camera-relative movement",
+        "exponential X/Z velocity damping",
+        "smooth analog steering",
+        "low-drag airborne momentum",
+        "jump take-off and range estimate",
+        "collision-safe motor momentum",
+        "grounding and support correction",
+        "rotation and animation state"
+      ],
+      "dependencies": [
+        "three"
+      ],
+      "tags": [
+        "gameplay-system",
+        "systems",
+        "Movement"
+      ]
+    },
+    {
+      "path": "src/systems/LevelSystem.js",
+      "status": "present",
+      "type": "gameplay-system",
+      "purpose": "Mengelola pemicu masuk Level 1-5, pengecekan item quest, penyelesaian level, dan pemulangan karakter ke shelter.",
+      "description": "Memakai anchor portal bersama dengan world geometry sehingga koordinat trigger Level 1-4 selaras dengan pintu, sedangkan Level 5 memakai pendekatan dari dalam ruang.",
+      "contents": [
+        "level entry triggers",
+        "quest item checks",
+        "level completion",
+        "return-home transition",
+        "portal trigger anchors"
+      ],
+      "dependencies": [
+        "../physics/PhysicsWorld.js",
+        "../world/LevelAnchors.js",
+        "../world/worldrules.json",
+        "three"
+      ],
+      "tags": [
+        "gameplay-system",
+        "systems",
+        "LevelSystem",
+        "portal",
+        "teleport"
+      ]
+    },
+    {
+      "path": "src/systems/Performance.js",
+      "status": "present",
+      "type": "diagnostics",
+      "purpose": "Sampler FPS ringan berbasis delta time yang memperbarui HUD berkala",
+      "description": "Sampler FPS ringan berbasis delta waktu render nyata. Mengubah skala pixel ratio bertahap setelah sampel lambat/cepat; telemetry tidak lagi membatasi pengukuran ke 60 Hz.",
+      "contents": [
+        "FPS estimate from actual render-frame delta",
+        "high-refresh frame sampling above 60 Hz",
+        "frame sample",
+        "low-FPS streak detection",
+        "high-FPS recovery",
+        "adaptive pixel ratio callback"
+      ],
+      "dependencies": [],
+      "tags": [
+        "diagnostics",
+        "systems",
+        "Performance"
+      ]
+    },
+    {
+      "path": "src/ui/HUD.js",
+      "status": "present",
+      "type": "ui-controller",
+      "purpose": "Handler HUD, grafik dan fullscreen, dengan sakelar FPS dan Morning Check khusus developer di Advanced Settings",
+      "description": "Mengelola HUD, kontrol grafis dan status aktivitas. Toast dinonaktifkan permanen supaya tidak menutupi kontrol atau gesture kamera. Developer Mode membuka Advanced Settings.",
+      "contents": [
+        "quality selector",
+        "fullscreen",
+        "FPS",
+        "activity status",
+        "toast API retained as a no-op; toast overlay removed",
+        "user-toggleable Developer Mode saved in localStorage",
+        "advanced settings panel without URL parameters",
+        "FPS visibility switch and persistent preference",
+        "Morning Check visibility switch and persistent preference",
+        "mobile FPS pill override",
+        "pause WebGL rendering while settings are open",
+        "scroll-optimized opaque settings panel",
+        "SVG icon registry with chevron, sparkles, code and arrow assets"
+      ],
+      "dependencies": [
+        "../core/Quality.js",
+        "./icon/paw.svg",
+        "./icon/settings.svg",
+        "./icon/eye.svg",
+        "./icon/eye-off.svg",
+        "./icon/zoom-in.svg",
+        "./icon/zoom-out.svg",
+        "./icon/camera-reset.svg",
+        "./icon/jump.svg",
+        "./icon/run.svg",
+        "./icon/sit.svg",
+        "./icon/stand.svg",
+        "./icon/fullscreen.svg",
+        "./icon/close.svg",
+        "./icon/target.svg",
+        "./icon/activity.svg",
+        "./icon/speed.svg",
+        "./icon/alert.svg",
+        "./icon/chevron-down.svg",
+        "./icon/arrow-up-right.svg",
+        "./icon/sparkles.svg",
+        "./icon/code-2.svg",
+        "./icon/package.svg",
+        "../core/Localization.js"
+      ],
+      "tags": [
+        "ui-controller",
+        "ui",
+        "HUD"
+      ]
+    },
+    {
+      "path": "src/ui/LoadingScreen.js",
+      "status": "present",
+      "type": "ui-controller",
+      "purpose": "Mengatur progress pemuatan dan menampilkan pesan error saat startup gagal",
+      "description": "Mengatur progress pemuatan dan menampilkan pesan error saat startup gagal.",
+      "contents": [
+        "progress bar",
+        "loading status",
+        "error screen"
+      ],
+      "dependencies": [
+        "../core/Localization.js"
+      ],
+      "tags": [
+        "ui-controller",
+        "ui",
+        "LoadingScreen"
+      ]
+    },
+    {
+      "path": "src/world/Architecture.js",
+      "status": "present",
+      "type": "world-builder",
+      "purpose": "Menghasilkan lantai tile instancing, dinding, kaca/jendela, rangka timber, entry, pagar rendah dan pembagian zona",
+      "description": "Menghasilkan lantai tile instancing, dinding, kaca/jendela, rangka timber, entry, pagar rendah dan pembagian zona.",
+      "contents": [
+        "floor tiles",
+        "shelter enclosure",
+        "windows",
+        "rafters",
+        "entry",
+        "play zones",
+        "fence colliders"
+      ],
+      "dependencies": [
+        "./LevelAnchors.js",
+        "./palette.js",
+        "three"
+      ],
+      "tags": [
+        "world-builder",
+        "world",
+        "Architecture"
+      ]
+    },
+    {
+      "path": "src/world/Decorations.js",
+      "status": "present",
+      "type": "world-builder",
+      "purpose": "Menempatkan pot tanaman, signage, pendants, lampu dekoratif, wall accents dan water station",
+      "description": "Menempatkan pot tanaman, signage, pendants, lampu dekoratif, wall accents dan water station dengan jumlah titik cahaya yang dibatasi demi performa.",
+      "contents": [
+        "plants",
+        "signage",
+        "pendant lights",
+        "limited point lighting",
+        "wall accents",
+        "water station"
+      ],
+      "dependencies": [
+        "./LevelAnchors.js",
+        "three"
+      ],
+      "tags": [
+        "world-builder",
+        "world",
+        "Decorations"
+      ]
+    },
+    {
+      "path": "src/world/LevelAnchors.js",
+      "status": "present",
+      "type": "world-configuration",
+      "purpose": "Satu sumber koordinat portal Level 1-5, area pendekatan teleport, dan titik legacy yang harus tetap bebas dari trim dinding.",
+      "description": "Menyinkronkan posisi visual portal dengan trigger LevelSystem agar pergeseran pintu tidak meninggalkan trigger di koordinat lama.",
+      "contents": [
+        "portal anchors for Levels 1-5",
+        "teleport approach triggers",
+        "legacy wall clearance"
+      ],
+      "dependencies": [],
+      "tags": [
+        "world",
+        "level",
+        "portal",
+        "teleport",
+        "anchors"
+      ]
+    },
+    {
+      "path": "src/world/Props.js",
+      "status": "present",
+      "type": "world-builder",
+      "purpose": "Membangun aset prosedural dog house, tempat tidur, mangkuk, mainan, ramp agility, terowongan, rak dan cubbies",
+      "description": "Membangun aset prosedural dog house, tempat tidur, mangkuk, mainan, ramp agility, terowongan, rak dan cubbies.",
+      "contents": [
+        "dog houses",
+        "beds",
+        "bowls",
+        "toys",
+        "ramp",
+        "tunnel",
+        "shelves"
+      ],
+      "dependencies": [
+        "./palette.js",
+        "three"
+      ],
+      "tags": [
+        "world-builder",
+        "world",
+        "Props"
+      ]
+    },
+    {
+      "path": "src/world/Shelter.js",
+      "status": "present",
+      "type": "world-composer",
+      "purpose": "Orkestrator world",
+      "description": "Orkestrator world: caches geometri/material, menyusun shell, zona, furnitur, dekorasi dan menyimpan geometri solid untuk collider. Its staged loading-progress messages use the locale catalog.",
+      "contents": [
+        "world root",
+        "geometry/material cache",
+        "world builders",
+        "solid collision list",
+        "asset cleanup",
+        "localized shelter-build progress messages"
+      ],
+      "dependencies": [
+        "../core/AssetLoader.js",
+        "./Architecture.js",
+        "./Decorations.js",
+        "./Props.js",
+        "./palette.js",
+        "three",
+        "three/addons/geometries/RoundedBoxGeometry.js",
+        "../core/Localization.js"
+      ],
+      "tags": [
+        "world-composer",
+        "world",
+        "Shelter"
+      ]
+    },
+    {
+      "path": "src/world/palette.js",
+      "status": "present",
+      "type": "design-tokens",
+      "purpose": "Palet warna bersama untuk material lingkungan agar tampilan shelter konsisten",
+      "description": "Palet warna bersama untuk material lingkungan agar tampilan shelter konsisten.",
+      "contents": [
+        "color palette",
+        "material tokens"
+      ],
+      "dependencies": [],
+      "tags": [
+        "design-tokens",
+        "world",
+        "palette"
+      ]
+    },
+    {
+      "path": "vite.config.js",
+      "status": "present",
+      "type": "configuration",
+      "purpose": "Konfigurasi Vite untuk ES modules, base path relatif dan pemisahan chunk vendor pada production build",
+      "description": "Konfigurasi Vite 8 dengan base path relatif, dev/preview server, output production, target ES2022 dan Rolldown code-splitting groups untuk Three.js serta Rapier.",
+      "contents": [
+        "relative base path",
+        "dev/preview host",
+        "dist output",
+        "ES2022 target",
+        "Rolldown code splitting groups"
+      ],
+      "dependencies": [
+        "vite"
+      ],
+      "tags": [
+        "configuration",
+        "vite",
+        "config"
+      ]
+    },
+    {
+      "path": "src/styles/touch-ff.css",
+      "status": "present",
+      "type": "stylesheet",
+      "purpose": "Styling kontrol layar sentuh, joystick dinamis, meter auto-run dan tombol aksi yang mengikuti lengkung ibu jari.",
+      "description": "CSS kontrol mobile dan panel pengaturan yang dioptimalkan untuk scroll: panel opaque tanpa backdrop blur, contain layout/style, overscroll containment, touch-action pan-y, dan shadow ringan.",
+      "contents": [
+        "dynamic joystick",
+        "thumb-friendly action cluster",
+        "responsive portrait/landscape controls",
+        "large centered landscape pickup button positioned 25vw from the right edge",
+        "hide inactive pickup/drop controls so camera swipes pass through; keep in-game backpack and drop buttons available when the HUD is hidden",
+        "hide guide and interaction prompt on landscape phones",
+        "auto-run percentage meter",
+        "scroll-optimized settings panel",
+        "settings-open FPS indicator suppression",
+        "SVG icons for settings and developer actions"
+      ],
+      "dependencies": [],
+      "tags": [
+        "stylesheet",
+        "touch",
+        "mobile",
+        "controls"
+      ]
+    },
+    {
+      "path": "src/systems/BirthdayTheme.js",
+      "status": "planned",
+      "type": "javascript-module",
+      "purpose": "Stub kelas tema ulang tahun yang belum diimpor oleh runtime.",
+      "description": "File ini baru berisi constructor minimal; preview dekorasi ulang tahun yang aktif saat ini berada di GameRenderer.setBirthdayTheme().",
+      "contents": [
+        "stub only",
+        "not imported by main.js"
+      ],
+      "dependencies": [],
+      "tags": [
+        "placeholder",
+        "birthday-theme",
+        "not-integrated"
+      ]
+    },
+    {
+      "path": "src/character/anim/mengambil.js",
+      "status": "planned",
+      "type": "animation-module",
+      "purpose": "Kerangka animasi aksi mengambil atau memungut objek.",
+      "description": "File kosong; belum ada animasi mengambil yang terhubung ke karakter pemain.",
+      "contents": [],
+      "dependencies": [],
+      "tags": [
+        "placeholder",
+        "animation",
+        "pickup"
+      ]
+    },
+    {
+      "path": "src/character/inventory.js",
+      "status": "present",
+      "type": "gameplay-system",
+      "purpose": "Sistem pickup, barang yang dibawa di mulut anjing robot, dan inventori 12 slot.",
+      "description": "Menyediakan lima pickup 3D dengan Rapier, inventori 12 slot, serta drop komedi dari bawah ekor: kibasan ekor dan puff kecil, momentum gerak K-09 yang diwariskan, spin, gravitasi dan tabrakan fisik. Item names and dynamic inventory labels resolve through the locale catalog.",
+      "contents": [
+        "5 collectible types with shared Three.js geometry and materials",
+        "Rapier rigid bodies for starter pickups and dropped objects",
+        "per-item collider dimensions, mass, friction, restitution and damping",
+        "tail-base release with a short, lightweight comic puff and tail flick",
+        "inherited world velocity and angular momentum for dropped items",
+        "support-surface marker follows the actual collider below the item",
+        "12-slot inventory UI and mouth attachment for carried items",
+        "localStorage persistence for inventory, carried item, collected starter pickups, and dropped item positions",
+        "localized item names, slot labels, and interaction prompts"
+      ],
+      "dependencies": [
+        "three",
+        "src/physics/PhysicsWorld.js",
+        "src/controls/Input.js",
+        "src/ui/HUD.js",
+        "index.html",
+        "src/styles/touch-ff.css",
+        "../core/Localization.js"
+      ],
+      "tags": [
+        "inventory",
+        "pickup",
+        "collectibles",
+        "mouth-carry",
+        "persistent-state"
+      ]
+    },
+    {
+      "path": "src/character/npc/slime.js",
+      "status": "planned",
+      "type": "npc-module",
+      "purpose": "Kerangka NPC atau musuh slime.",
+      "description": "File kosong; belum ada entity, AI, collision atau interaksi slime di runtime.",
+      "contents": [],
+      "dependencies": [],
+      "tags": [
+        "placeholder",
+        "npc",
+        "slime"
+      ]
+    },
+    {
+      "path": "src/character/npc/wizard.js",
+      "status": "planned",
+      "type": "npc-module",
+      "purpose": "Kerangka NPC penyihir.",
+      "description": "File kosong; belum ada model, AI, dialog atau interaksi wizard di runtime.",
+      "contents": [],
+      "dependencies": [],
+      "tags": [
+        "placeholder",
+        "npc",
+        "wizard"
+      ]
+    },
+    {
+      "path": "src/world/object/kado.js",
+      "status": "present",
+      "type": "world-object-module",
+      "purpose": "Membangun kado besar ulang tahun di tengah shelter, pressure plate, dinding lipat, tutup hoist, dan isi hadiah yang hanya dirender saat terbuka.",
+      "description": "Kado fisik di dunia game yang terbuka saat anjing atau benda bermassa cukup menekan pressure plate. Saat kado hampir terbuka penuh, memancarkan event satu kali untuk menampilkan greeting ulang tahun.",
+      "contents": [
+        "central birthday gift geometry and panels",
+        "in-world pressure plate and weight detection",
+        "folding walls and hoisted lid animation",
+        "hidden gift contents until opening",
+        "one-shot birthday greeting event after full opening"
+      ],
+      "dependencies": [
+        "three",
+        "three/addons/geometries/RoundedBoxGeometry.js",
+        "three/addons/utils/BufferGeometryUtils.js",
+        "../worldrules.json",
+        "../palette.js"
+      ],
+      "tags": [
+        "object",
+        "gift",
+        "birthday",
+        "pressure-plate",
+        "interaction"
+      ]
+    },
+    {
+      "path": "src/world/object/penjara-kado.js",
+      "status": "planned",
+      "type": "world-object-module",
+      "purpose": "Kerangka objek penjara atau kurungan kado.",
+      "description": "File kosong; belum ada visual, collider, mekanisme kunci atau interaksi yang aktif.",
+      "contents": [],
+      "dependencies": [],
+      "tags": [
+        "placeholder",
+        "object",
+        "gift-cage"
+      ]
+    },
+    {
+      "path": "src/world/object/cincin_emas.glb",
+      "status": "present",
+      "type": "model-asset",
+      "purpose": "Aset model GLB cincin emas.",
+      "description": "File aset lokal tersedia (6,820 byte), tetapi pencarian referensi tidak menemukan pemakaian dari scene aktif; belum dimuat oleh gameplay.",
+      "contents": [
+        "GLB model asset",
+        "not referenced by active scene"
+      ],
+      "dependencies": [],
+      "tags": [
+        "asset",
+        "glb",
+        "gold-ring",
+        "not-integrated"
+      ]
+    },
+    {
+      "path": "src/world/sound/benda.js",
+      "status": "planned",
+      "type": "audio-module",
+      "purpose": "Kerangka efek suara saat berinteraksi dengan benda.",
+      "description": "File kosong; belum ada sistem audio runtime yang mengimpor modul ini.",
+      "contents": [],
+      "dependencies": [],
+      "tags": [
+        "placeholder",
+        "audio",
+        "object"
+      ]
+    },
+    {
+      "path": "src/world/sound/jump.js",
+      "status": "planned",
+      "type": "audio-module",
+      "purpose": "Kerangka efek suara lompatan.",
+      "description": "File kosong; belum ada efek audio jump yang terhubung.",
+      "contents": [],
+      "dependencies": [],
+      "tags": [
+        "placeholder",
+        "audio",
+        "jump"
+      ]
+    },
+    {
+      "path": "src/world/sound/properties.js",
+      "status": "planned",
+      "type": "audio-module",
+      "purpose": "Kerangka konfigurasi atau properti audio.",
+      "description": "File kosong; format konfigurasi dan API audio belum ditentukan oleh implementasi.",
+      "contents": [],
+      "dependencies": [],
+      "tags": [
+        "placeholder",
+        "audio",
+        "configuration"
+      ]
+    },
+    {
+      "path": "src/world/sound/run.js",
+      "status": "planned",
+      "type": "audio-module",
+      "purpose": "Kerangka efek suara saat berlari.",
+      "description": "File kosong; belum ada efek audio run yang terhubung.",
+      "contents": [],
+      "dependencies": [],
+      "tags": [
+        "placeholder",
+        "audio",
+        "run"
+      ]
+    },
+    {
+      "path": "src/world/sound/walk.js",
+      "status": "planned",
+      "type": "audio-module",
+      "purpose": "Kerangka efek suara langkah berjalan.",
+      "description": "File kosong; belum ada efek audio walk yang terhubung.",
+      "contents": [],
+      "dependencies": [],
+      "tags": [
+        "placeholder",
+        "audio",
+        "walk"
+      ]
+    },
+    {
+      "path": "src/world/sound/BackgroundMusic.js",
+      "status": "present",
+      "type": "audio-module",
+      "purpose": "Mengelola musik latar home dan level dengan looping dan crossfade.",
+      "description": "Memilih morning_in_the_toy_box untuk shelter dan clear_the_stage untuk level. Audio memakai preload none, baru meminta pemutaran setelah gesture pertama, crossfade 1.1 detik, volume latar rendah, pause saat dokumen tersembunyi, dan cleanup saat game dihentikan.",
+      "contents": [
+        "home BGM selection",
+        "level BGM selection",
+        "lazy audio loading",
+        "loop playback",
+        "crossfade between modes",
+        "user-gesture playback unlock",
+        "visibility pause and resume",
+        "audio cleanup"
+      ],
+      "dependencies": [
+        "./BGM/morning_in_the_toy_box.ogg",
+        "./BGM/clear_the_stage.ogg"
+      ],
+      "tags": [
+        "audio",
+        "bgm",
+        "home",
+        "level"
+      ]
+    },
+    {
+      "path": "src/world/sound/BGM/morning_in_the_toy_box.ogg",
+      "status": "present",
+      "type": "audio-asset",
+      "purpose": "Musik latar area home/shelter.",
+      "description": "Ogg Vorbis stereo 44.1 kHz, durasi sekitar 143 detik; dimuat saat mode home mulai diputar.",
+      "contents": [
+        "Ogg Vorbis audio",
+        "home ambience",
+        "looped playback"
+      ],
+      "dependencies": [],
+      "tags": [
+        "audio",
+        "bgm",
+        "home"
+      ]
+    },
+    {
+      "path": "src/world/sound/BGM/clear_the_stage.ogg",
+      "status": "present",
+      "type": "audio-asset",
+      "purpose": "Musik latar arena level.",
+      "description": "Ogg Vorbis stereo 44.1 kHz, durasi sekitar 177 detik; dimuat saat pemain memasuki level.",
+      "contents": [
+        "Ogg Vorbis audio",
+        "level ambience",
+        "looped playback"
+      ],
+      "dependencies": [],
+      "tags": [
+        "audio",
+        "bgm",
+        "level"
+      ]
+    },
+    {
+      "path": "src/world/sound/UISound.js",
+      "status": "present",
+      "type": "audio-module",
+      "purpose": "Menangani efek suara UI untuk hover, select, pop, dan konfirmasi.",
+      "description": "Delegated pointer/keyboard handlers, variasi select/pop, hover khusus pointer yang mendukung hover, pengecualian kontrol gerak, preload SFX lokal, serta cleanup dan pause saat tab tersembunyi.",
+      "contents": [
+        "hover feedback",
+        "select feedback with three variants",
+        "panel pop feedback with three variants",
+        "confirmation feedback",
+        "keyboard activation",
+        "touch gameplay control exclusions",
+        "visibility pause",
+        "cleanup"
+      ],
+      "dependencies": [
+        "./SFX/ui/select_1.wav",
+        "./SFX/ui/select_2.wav",
+        "./SFX/ui/select_3.wav",
+        "./SFX/ui/pop_1.wav",
+        "./SFX/ui/pop_2.wav",
+        "./SFX/ui/pop_3.wav",
+        "./SFX/ui/sci_fi_hover.wav",
+        "./SFX/ui/sci_fi_confirm.wav"
+      ],
+      "tags": [
+        "audio",
+        "sfx",
+        "ui"
+      ]
+    },
+    {
+      "path": "src/world/sound/SFX/ui/select_1.wav",
+      "status": "present",
+      "type": "audio-asset",
+      "purpose": "Varian efek suara select UI pertama.",
+      "description": "WAV lokal untuk respons pilihan kontrol UI.",
+      "contents": [
+        "UI select"
+      ],
+      "dependencies": [],
+      "tags": [
+        "audio",
+        "sfx",
+        "ui",
+        "select"
+      ]
+    },
+    {
+      "path": "src/world/sound/SFX/ui/select_2.wav",
+      "status": "present",
+      "type": "audio-asset",
+      "purpose": "Varian efek suara select UI kedua.",
+      "description": "WAV lokal untuk variasi respons pilihan kontrol UI.",
+      "contents": [
+        "UI select variation"
+      ],
+      "dependencies": [],
+      "tags": [
+        "audio",
+        "sfx",
+        "ui",
+        "select"
+      ]
+    },
+    {
+      "path": "src/world/sound/SFX/ui/select_3.wav",
+      "status": "present",
+      "type": "audio-asset",
+      "purpose": "Varian efek suara select UI ketiga.",
+      "description": "WAV lokal untuk variasi respons pilihan kontrol UI.",
+      "contents": [
+        "UI select variation"
+      ],
+      "dependencies": [],
+      "tags": [
+        "audio",
+        "sfx",
+        "ui",
+        "select"
+      ]
+    },
+    {
+      "path": "src/world/sound/SFX/ui/pop_1.wav",
+      "status": "present",
+      "type": "audio-asset",
+      "purpose": "Varian efek pop UI pertama.",
+      "description": "WAV lokal untuk membuka atau menutup panel.",
+      "contents": [
+        "UI pop"
+      ],
+      "dependencies": [],
+      "tags": [
+        "audio",
+        "sfx",
+        "ui",
+        "pop"
+      ]
+    },
+    {
+      "path": "src/world/sound/SFX/ui/pop_2.wav",
+      "status": "present",
+      "type": "audio-asset",
+      "purpose": "Varian efek pop UI kedua.",
+      "description": "WAV lokal untuk variasi membuka atau menutup panel.",
+      "contents": [
+        "UI pop variation"
+      ],
+      "dependencies": [],
+      "tags": [
+        "audio",
+        "sfx",
+        "ui",
+        "pop"
+      ]
+    },
+    {
+      "path": "src/world/sound/SFX/ui/pop_3.wav",
+      "status": "present",
+      "type": "audio-asset",
+      "purpose": "Varian efek pop UI ketiga.",
+      "description": "WAV lokal untuk variasi membuka atau menutup panel.",
+      "contents": [
+        "UI pop variation"
+      ],
+      "dependencies": [],
+      "tags": [
+        "audio",
+        "sfx",
+        "ui",
+        "pop"
+      ]
+    },
+    {
+      "path": "src/world/sound/SFX/ui/sci_fi_hover.wav",
+      "status": "present",
+      "type": "audio-asset",
+      "purpose": "Efek hover UI.",
+      "description": "WAV lokal untuk pointer hover pada perangkat yang mendukung hover.",
+      "contents": [
+        "UI hover"
+      ],
+      "dependencies": [],
+      "tags": [
+        "audio",
+        "sfx",
+        "ui",
+        "hover"
+      ]
+    },
+    {
+      "path": "src/world/sound/SFX/ui/sci_fi_confirm.wav",
+      "status": "present",
+      "type": "audio-asset",
+      "purpose": "Efek konfirmasi UI.",
+      "description": "WAV lokal untuk tombol konfirmasi dan penerimaan tindakan UI.",
+      "contents": [
+        "UI confirmation"
+      ],
+      "dependencies": [],
+      "tags": [
+        "audio",
+        "sfx",
+        "ui",
+        "confirm"
+      ]
+    },
+    {
+      "path": "src/ui/icon/paw.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: paw.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/settings.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: settings.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/eye.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: eye.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/eye-off.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: eye-off.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/zoom-in.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: zoom-in.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/zoom-out.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: zoom-out.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/camera-reset.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: camera-reset.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/jump.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: jump.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/run.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: run.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/sit.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: sit.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/stand.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: stand.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/fullscreen.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: fullscreen.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/close.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: close.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/target.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: target.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/activity.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: activity.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/speed.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: speed.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/alert.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: alert.",
+      "description": "Monochrome scalable vector icon for the adventure HUD. Displayed through a CSS mask so the icon inherits the current UI color and is bundled by Vite.",
+      "contents": [
+        "scalable vector icon",
+        "currentColor-compatible mask",
+        "mobile-friendly UI asset"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/chevron-down.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: chevron down.",
+      "description": "Monochrome SVG mask icon used by the expandable Advanced Settings disclosure control.",
+      "contents": [
+        "scalable vector icon",
+        "scrolling settings affordance"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/arrow-up-right.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: arrow up right.",
+      "description": "Monochrome SVG mask icon used by the settings Done action.",
+      "contents": [
+        "scalable vector icon",
+        "settings action affordance"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/sparkles.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: sparkles.",
+      "description": "Monochrome SVG mask icon used by the birthday preview and loading decoration.",
+      "contents": [
+        "scalable vector icon",
+        "decorative sparkles"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/code-2.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG interface icon: code.",
+      "description": "Monochrome SVG mask icon used to identify Developer Mode.",
+      "contents": [
+        "scalable vector icon",
+        "developer settings icon"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/ui/icon/package.svg",
+      "status": "present",
+      "type": "ui-asset",
+      "purpose": "SVG backpack icon used by the in-game inventory toggle.",
+      "description": "Monochrome SVG backpack mask icon used by the in-game inventory toggle.",
+      "contents": [
+        "scalable vector icon",
+        "inventory and field pack icon"
+      ],
+      "dependencies": []
+    },
+    {
+      "path": "src/core/Localization.js",
+      "status": "present",
+      "type": "localization-system",
+      "purpose": "Locale lookup, safe English fallback, parameter interpolation, and DOM translation attributes.",
+      "description": "Provides t(), setLocale(), applyTranslations(), getLocale(), and SUPPORTED_LOCALES. Changing locale is an API operation; no language picker has been added yet.",
+      "contents": [
+        "English default locale",
+        "English fallback for missing keys",
+        "parameter interpolation with {{name}}",
+        "data-i18n text and accessibility attributes",
+        "locale-change event"
+      ],
+      "dependencies": [
+        "../localization/en.json",
+        "../localization/id.json"
+      ],
+      "tags": [
+        "localization",
+        "i18n",
+        "translation",
+        "language"
+      ]
+    },
+    {
+      "path": "src/localization/en.json",
+      "status": "present",
+      "type": "localization-catalog",
+      "purpose": "English source strings for UI, loading/error states, and world-physics/performance rules.",
+      "description": "English source strings for UI, accessibility, game states, world rules, and the four-page dialogue from six angels.",
+      "contents": [
+        "UI strings",
+        "accessibility labels",
+        "loading and error messages",
+        "four-page six-angel birthday story messages",
+        "album gallery labels and alt text",
+        "world physics rule strings",
+        "performance and stability rule strings"
+      ],
+      "dependencies": [],
+      "tags": [
+        "localization",
+        "english",
+        "strings",
+        "i18n"
+      ]
+    },
+    {
+      "path": "src/localization/id.json",
+      "status": "present",
+      "type": "localization-catalog",
+      "purpose": "Bahasa Indonesia translations for the same keys as the English catalogue.",
+      "description": "Bahasa Indonesia untuk UI, aksesibilitas, status game, aturan dunia, dan dialog empat slide dari enam angel.",
+      "contents": [
+        "UI strings",
+        "accessibility labels",
+        "loading and error messages",
+        "four-page six-angel birthday story messages",
+        "album gallery labels and alt text",
+        "world physics rule strings",
+        "performance and stability rule strings"
+      ],
+      "dependencies": [],
+      "tags": [
+        "localization",
+        "indonesian",
+        "strings",
+        "i18n"
+      ]
+    },
+    {
+      "path": "src/world/gamerules.json",
+      "status": "present",
+      "type": "game-rules-baseline",
+      "purpose": "Acceptance baseline for world physics, performance, stability, and translation-key coverage only.",
+      "description": "Defines the requested physics and performance rules plus technical targets as design criteria. It is not a runtime rules engine and does not automatically enforce the criteria.",
+      "contents": [
+        "mass, gravity, momentum and collision rules",
+        "distinct walk/run/jump/fall/landing responses",
+        "bounded mass-scaled impacts",
+        "no penetration, unexplained hovering or blocked locomotion",
+        "animation follows authoritative motion",
+        "60 FPS target and fixed-step physics",
+        "keep important collisions when reducing visual detail",
+        "avoid expensive updates for inactive bodies",
+        "avoid reload/loading loops and provide recovery"
+      ],
+      "dependencies": [
+        "src/localization/en.json",
+        "src/localization/id.json"
+      ],
+      "tags": [
+        "game-rules",
+        "physics",
+        "performance",
+        "stability",
+        "acceptance-criteria"
+      ]
+    },
+    {
+      "path": "public/splash/splash.mp4",
+      "status": "present",
+      "type": "video-asset",
+      "purpose": "Intro video shown after the landscape gate and before the game loading screen.",
+      "description": "Source video is retained in splash/splash.mp4 and copied into Vite public assets for reliable production output.",
+      "contents": [
+        "MP4 intro video",
+        "fullscreen muted playback",
+        "skip and autoplay fallback controls"
+      ],
+      "dependencies": [],
+      "tags": [
+        "video",
+        "splash",
+        "intro",
+        "public-asset"
+      ]
+    },
+    {
+      "path": "src/world/greeat/GiftBirthdayGreeting.js",
+      "status": "present",
+      "type": "ui-controller",
+      "purpose": "Menampilkan ucapan ulang tahun empat slide dari enam angel, lalu membuka surat pribadi developer yang dapat digulir dan menulis I LOVE YOU setelah pembaca mencapai akhir surat.",
+      "description": "Alur greeting setelah kado besar terbuka: empat halaman enam angel dan album foto, satu adegan pengantar dari Memory Angel untuk surat developer, kemudian surat ulang tahun vertikal dengan tujuh paragraf, indikator progres baca, typewriter I LOVE YOU setelah mencapai akhir, dan tombol kembali ke shelter. Mendukung EN/ID dan lifecycle pause/resume game.",
+      "contents": [
+        "four-page birthday greeting sequence from six angel characters",
+        "four-photo memory album beside Memory Angel",
+        "developer-message introduction spoken by Memory Angel",
+        "separate vertically scrollable personal birthday letter",
+        "seven localized letter paragraphs about the custom game, gratitude, companionship, growth and future hopes",
+        "reading progress indicator",
+        "typewriter I LOVE YOU revealed only after reaching the end of the letter",
+        "finish action enabled after the love message is written",
+        "keyboard and continue-button navigation",
+        "pause and resume gameplay while greeting is open"
+      ],
+      "dependencies": [
+        "./WelcomeGreeting.css",
+        "./GiftBirthdayGreeting.css",
+        "./angle.png",
+        "./blue-angel.png",
+        "./green-angel.png",
+        "./orange-angle.png",
+        "./purple-angle.png",
+        "./spesial-angel.png",
+        "../skin/object/album0.webp",
+        "../skin/object/album1.webp",
+        "../skin/object/album2.webp",
+        "../skin/object/album3.webp",
+        "../../core/Localization.js"
+      ],
+      "tags": [
+        "birthday",
+        "greeting",
+        "gift",
+        "angel",
+        "album",
+        "story",
+        "ui"
+      ]
+    },
+    {
+      "path": "src/world/greeat/GiftBirthdayGreeting.css",
+      "status": "present",
+      "type": "stylesheet",
+      "purpose": "Layout adaptif empat slide greeting ulang tahun agar teks, tombol, enam angel, dan empat foto album tetap terlihat pada layar desktop, landscape pendek, dan portrait yang diputar.",
+      "description": "Style responsif greeting dan surat developer vertikal, dengan penutup I LOVE YOU bergaya tipografi serif bergradasi, kilau dekoratif, serta ikon hati yang berdenyut dengan halo lembut.",
+      "contents": [
+        "four-slide responsive angel story",
+        "four-image memory album gallery",
+        "vertically scrollable developer letter",
+        "readable letter typography and layout",
+        "romantic gradient serif I LOVE YOU sign-off",
+        "decorative star and side sparkles",
+        "two-beat pulsing heart with expanding halo",
+        "scroll progress indicator and sticky finish action",
+        "compact screen and reduced-motion support"
+      ],
+      "dependencies": [
+        "./WelcomeGreeting.css"
+      ],
+      "tags": [
+        "stylesheet",
+        "birthday",
+        "greeting",
+        "gallery",
+        "responsive"
+      ]
+    }
+  ],
+  "file_lookup": {
+    "mulai aplikasi atau game loop": [
+      "index.html",
+      "src/main.js"
+    ],
+    "build, npm, versi dependency": [
+      "package.json",
+      "vite.config.js"
+    ],
+    "instruksi dan spesifikasi": [
+      "README.md",
+      "PLAN.md"
+    ],
+    "indeks file untuk ai": [
+      "manifest.json",
+      "scripts/check-project.mjs"
+    ],
+    "rendering, shadows, reflections, bloom, ssao": [
+      "src/core/Renderer.js",
+      "src/core/Quality.js"
+    ],
+    "scene dan lighting": [
+      "src/core/Scene.js",
+      "src/world/Decorations.js"
+    ],
+    "load model/texture dan label": [
+      "src/core/AssetLoader.js",
+      "src/world/Shelter.js"
+    ],
+    "ruangan, lantai, pagar, kaca, zona": [
+      "src/world/Architecture.js",
+      "src/world/Shelter.js",
+      "src/world/Decorations.js"
+    ],
+    "pintu level, teleport, koordinat portal": [
+      "src/world/LevelAnchors.js",
+      "src/world/Decorations.js",
+      "src/systems/LevelSystem.js"
+    ],
+    "rumah anjing, bed, mangkuk, mainan, ramp, tunnel": [
+      "src/world/Props.js"
+    ],
+    "tanaman, tanda, lampu": [
+      "src/world/Decorations.js",
+      "src/world/palette.js"
+    ],
+    "model fisik anjing robot": [
+      "src/character/DogRig.js",
+      "src/character/RobotDog.js"
+    ],
+    "animasi idle walk run jump landing": [
+      "src/character/DogAnimator.js"
+    ],
+    "rapier, gravity, grounded, collider": [
+      "src/physics/PhysicsWorld.js",
+      "src/systems/Movement.js"
+    ],
+    "keyboard, mouse, touchscreen": [
+      "src/controls/Input.js"
+    ],
+    "third-person orbit camera, zoom, collision": [
+      "src/controls/ThirdPersonCamera.js"
+    ],
+    "gerak akselerasi sprint lompat": [
+      "src/systems/Movement.js"
+    ],
+    "fps": [
+      "src/systems/Performance.js",
+      "src/ui/HUD.js"
+    ],
+    "Developer Mode, Advanced Settings, FPS, Morning Check": [
+      "index.html",
+      "src/ui/HUD.js",
+      "src/styles/touch-ff.css",
+      "scripts/check-project.mjs"
+    ],
+    "settings scroll performance and SVG UI icon coverage": [
+      "src/main.js",
+      "src/ui/HUD.js",
+      "src/styles/touch-ff.css",
+      "src/ui/icon/chevron-down.svg",
+      "src/ui/icon/arrow-up-right.svg",
+      "src/ui/icon/sparkles.svg",
+      "src/ui/icon/code-2.svg"
+    ],
+    "pickup interaction and mouth-carry inventory": [
+      "src/character/inventory.js",
+      "src/controls/Input.js",
+      "src/main.js",
+      "src/ui/HUD.js",
+      "index.html",
+      "src/styles/touch-ff.css",
+      "src/ui/icon/package.svg"
+    ],
+    "mobile camera swipe passthrough and permanent toast removal": [
+      "src/ui/HUD.js",
+      "index.html",
+      "src/styles/main.css",
+      "src/styles/touch-ff.css",
+      "scripts/check-project.mjs"
+    ],
+    "loading progress dan startup error": [
+      "src/ui/LoadingScreen.js",
+      "src/main.js"
+    ],
+    "Eksperimen legacy PopClay/MatCap (tidak diimpor oleh runtime aktif)": [
+      "src/core/PopClay.js",
+      "matcaps/256/party-plastic-gloss-256px.png"
+    ],
+    "quality settings dan fullscreen": [
+      "src/ui/HUD.js",
+      "src/core/Renderer.js",
+      "src/core/Quality.js"
+    ],
+    "kontrol touch dan layout tombol mobile": [
+      "index.html",
+      "src/controls/Input.js",
+      "src/styles/touch-ff.css"
+    ],
+    "kerangka fitur NPC, kado dan animasi mengambil (belum terhubung)": [
+      "src/character/anim/mengambil.js",
+      "src/character/npc/slime.js",
+      "src/character/npc/wizard.js",
+      "src/world/object/kado.js",
+      "src/world/object/penjara-kado.js",
+      "src/world/object/cincin_emas.glb"
+    ],
+    "preview dekorasi ulang tahun aktif (Renderer.js)": [
+      "index.html",
+      "src/main.js",
+      "src/core/Renderer.js"
+    ],
+    "stub tema ulang tahun yang belum aktif": [
+      "src/systems/BirthdayTheme.js"
+    ],
+    "BGM home dan level (aktif)": [
+      "src/world/sound/BackgroundMusic.js",
+      "src/world/sound/BGM/morning_in_the_toy_box.ogg",
+      "src/world/sound/BGM/clear_the_stage.ogg"
+    ],
+    "UI sound effects (active)": [
+      "src/world/sound/UISound.js",
+      "src/world/sound/SFX/ui/select_1.wav",
+      "src/world/sound/SFX/ui/select_2.wav",
+      "src/world/sound/SFX/ui/select_3.wav",
+      "src/world/sound/SFX/ui/pop_1.wav",
+      "src/world/sound/SFX/ui/pop_2.wav",
+      "src/world/sound/SFX/ui/pop_3.wav",
+      "src/world/sound/SFX/ui/sci_fi_hover.wav",
+      "src/world/sound/SFX/ui/sci_fi_confirm.wav"
+    ],
+    "kerangka efek suara (belum terhubung)": [
+      "src/world/sound/benda.js",
+      "src/world/sound/jump.js",
+      "src/world/sound/properties.js",
+      "src/world/sound/run.js",
+      "src/world/sound/walk.js"
+    ],
+    "style responsive": [
+      "src/styles/main.css",
+      "index.html"
+    ],
+    "production static http server": [
+      "server.mjs"
+    ],
+    "deploy ke vps, port free, systemd, firewall": [
+      "scripts/deploy-vps.sh",
+      "README.md"
+    ],
+    "cek syntax/file/import": [
+      "scripts/check-project.mjs",
+      "package.json"
+    ],
+    "world physics rules, performance stability requirements, and translation strings": [
+      "src/world/gamerules.json",
+      "src/core/Localization.js",
+      "src/localization/en.json",
+      "src/localization/id.json"
+    ]
+  },
+  "conventions": {
+    "relative_path_format": "POSIX slash paths relative to project root",
+    "status_values": [
+      "present",
+      "planned",
+      "missing"
+    ],
+    "rule": "Do not describe an entry as implemented merely because it exists; tests or actual runtime observations must support behavior claims."
+  },
+  "localization": {
+    "defaultLocale": "en",
+    "supportedLocales": [
+      "en",
+      "id"
+    ],
+    "catalogs": {
+      "en": "src/localization/en.json",
+      "id": "src/localization/id.json"
+    },
+    "helper": "src/core/Localization.js",
+    "defaultLanguageSelectorIncluded": false,
+    "ruleTextKeys": "src/world/gamerules.json",
+    "note": "Locale catalogs and translation helpers are prepared; adding a language picker remains a separate UI task."
+  }
+}

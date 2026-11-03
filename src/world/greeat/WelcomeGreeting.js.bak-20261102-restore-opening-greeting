@@ -1,0 +1,46 @@
+import './WelcomeGreeting.css';
+import { applyTranslations } from '../../core/Localization.js';
+
+export function showWelcomeGreeting() {
+  if (typeof document === 'undefined' || document.getElementById('level-one-greeting')) return null;
+
+  const gameRoot = document.getElementById('game') || document.body;
+  const root = document.createElement('div');
+  root.id = 'level-one-greeting';
+  root.className = 'level-one-greeting';
+  root.innerHTML = `
+    <section class="level-one-greeting__card" role="dialog" aria-modal="false"
+      aria-labelledby="level-one-greeting-title" aria-describedby="level-one-greeting-message">
+      <span class="level-one-greeting__mark" aria-hidden="true">✦</span>
+      <div class="level-one-greeting__copy">
+        <span class="level-one-greeting__eyebrow" data-i18n="welcome.eyebrow"></span>
+        <h2 id="level-one-greeting-title" data-i18n="welcome.title"></h2>
+        <p id="level-one-greeting-message" data-i18n="welcome.message"></p>
+      </div>
+      <button class="level-one-greeting__start" type="button">
+        <span data-i18n="welcome.continue"></span>
+        <span aria-hidden="true">↗</span>
+      </button>
+    </section>
+  `;
+
+  gameRoot.append(root);
+  gameRoot.classList.add('level-one-greeting-active');
+  applyTranslations(root);
+
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    document.removeEventListener('keydown', onKeyDown);
+    gameRoot.classList.remove('level-one-greeting-active');
+    root.remove();
+  };
+  const onKeyDown = (event) => {
+    if (event.key === 'Escape') close();
+  };
+
+  root.querySelector('.level-one-greeting__start')?.addEventListener('click', close);
+  document.addEventListener('keydown', onKeyDown);
+  return close;
+}

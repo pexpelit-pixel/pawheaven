@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+  <meta name="theme-color" content="#082b2a">
+  <title>Paw Haven · World Editor</title>
+</head>
+<body>
+  <div id="editor-app" class="world-editor-game">
+    <main class="map-panel">
+      <div class="map-wrap" id="map-wrap">
+        <canvas id="spatial-map" aria-label="Dunia shelter 3D. Gunakan analog kamera untuk memutar pandangan, lalu ketuk dunia untuk memilih titik."></canvas>
+        <div class="world-label-layer" id="world-label-layer" aria-hidden="true"></div>
+        <div class="world-vignette"></div>
+      </div>
+    </main>
+
+    <header class="game-top-hud">
+      <a class="hud-home" href="./index.html" aria-label="Kembali ke game" title="Kembali ke game">‹</a>
+      <div class="hud-brand"><b>PAW HAVEN</b><small>WORLD EDITOR</small></div>
+      <div class="hud-status"><i class="live-dot"></i><span id="status-text">Memuat dunia 3D…</span></div>
+      <div class="hud-count"><b id="directive-count">0</b><small>LABEL</small></div>
+      <button id="sync-world-btn" class="hud-icon-button" type="button" title="Muat ulang world terbaru dari source game" aria-label="Sinkronkan world terbaru">↻</button>
+      <button id="save-local-btn" class="hud-icon-button" type="button" title="Simpan lokal" aria-label="Simpan lokal">▣</button>
+      <button id="panel-toggle-btn" class="hud-primary-button" type="button" aria-expanded="false">EDIT <span id="zone-count">0</span></button>
+      <button id="json-toggle-btn" class="hud-icon-button" type="button" aria-expanded="false" title="Panel JSON" aria-label="Panel JSON">{ }</button>
+    </header>
+
+    <div class="world-hint" id="map-instruction">Ketuk titik dunia untuk memberi label · gunakan analog untuk memutar kamera</div>
+    <div class="aim-readout" id="cursor-coordinate">X 0.00 · Y 0.00 · Z 0.00</div>
+
+    <section class="camera-control" aria-label="Kontrol analog kamera">
+      <div class="camera-control-label">PAN <span>CAMERA</span></div>
+      <div id="camera-stick" class="camera-stick" role="application" aria-label="Analog kamera. Geser untuk memutar pandangan" tabindex="0">
+        <span class="stick-arrow stick-up">⌃</span>
+        <span class="stick-arrow stick-left">‹</span>
+        <span class="stick-arrow stick-right">›</span>
+        <span class="stick-arrow stick-down">⌄</span>
+        <span class="stick-ring"></span>
+        <span id="camera-knob" class="camera-knob"></span>
+      </div>
+      <div class="camera-help">GESER = PAN · DRAG DUNIA = ROTASI</div>
+    </section>
+
+    <div class="game-actions">
+      <button id="select-mode-btn" class="game-action active" type="button"><span>⌖</span><small>LABEL TITIK</small></button>
+      <button id="draw-mode-btn" class="game-action" type="button"><span>⌗</span><small>AREA A → B</small></button>
+      <button id="show-labels-btn" class="game-action active" type="button" aria-pressed="true"><span>◉</span><small>LABEL ON</small></button>
+    </div>
+
+    <button id="panel-close-btn" class="panel-backdrop" type="button" aria-label="Tutup panel editor" tabindex="-1"></button>
+    <aside id="editor-drawer" class="editor-drawer" aria-label="Panel editor">
+      <div class="drawer-head">
+        <div><small class="drawer-eyebrow">PAW HAVEN / WORLD EDITOR</small><h1 id="inspector-title">Pilih sebuah titik</h1></div>
+        <button id="panel-close" class="drawer-close" type="button" aria-label="Tutup">×</button>
+      </div>
+      <div class="drawer-tabs">
+        <button id="editor-tab-details" class="drawer-tab active" type="button">LABEL & INSTRUKSI</button>
+        <button id="editor-tab-zones" class="drawer-tab" type="button">DAFTAR <span id="zone-list-count">0</span></button>
+      </div>
+
+      <section id="details-view" class="drawer-view">
+        <div id="empty-inspector" class="empty-inspector">
+          <div class="empty-icon">⌖</div><b>Bidik lokasi di dunia</b><p>Ketuk permukaan 3D untuk membuat label titik. Gunakan mode Area A → B untuk menentukan volume.</p>
+          <button id="create-point-btn" class="drawer-primary" type="button">＋ LABEL TITIK BARU</button>
+        </div>
+        <form id="zone-form" class="zone-form" hidden>
+          <label class="field-label">NAMA LABEL<input id="zone-label" data-field="label" maxlength="80" required placeholder="contoh: BIRTHDAY_TABLE"></label>
+          <label class="field-label">INSTRUKSI UNTUK AI<textarea id="zone-instruction" data-field="instruction" rows="3" maxlength="1600" placeholder="Contoh: letakkan meja kue di titik ini menghadap pusat ruangan."></textarea></label>
+          <div class="field-grid">
+            <label class="field-label">AKSI<select id="zone-action" data-field="action"><option value="place">Taruh objek</option><option value="move">Pindahkan objek</option><option value="modify">Ubah area / objek</option><option value="remove">Hapus objek</option><option value="keep_clear">Jaga tetap kosong</option><option value="trigger">Trigger volume</option><option value="route">Jalur / waypoint</option><option value="note">Catatan AI</option></select></label>
+            <label class="field-label">PRIORITAS<select id="zone-priority" data-field="priority"><option value="normal">Normal</option><option value="high">Tinggi</option><option value="critical">Kritis</option><option value="low">Rendah</option></select></label>
+          </div>
+          <details class="advanced-fields">
+            <summary>Target objek & koordinat lanjut <span>⌄</span></summary>
+            <label class="field-label">NAMA OBJEK<input id="target-name" data-field="targetName" maxlength="100" placeholder="contoh: meja kue"></label>
+            <div class="field-grid">
+              <label class="field-label">JENIS<select id="target-type" data-field="targetType"><option value="unspecified">Belum ditentukan</option><option value="table">Meja</option><option value="chair">Kursi</option><option value="doghouse">Rumah anjing</option><option value="bed">Tempat tidur</option><option value="decoration">Dekorasi</option><option value="plant">Tanaman</option><option value="prop">Properti umum</option><option value="trigger">Trigger</option><option value="waypoint">Waypoint</option><option value="clearance">Area kosong</option><option value="custom">Kustom</option></select></label>
+              <label class="field-label">JUMLAH<input id="target-count" data-field="count" type="number" min="1" max="1000" step="1" value="1"></label>
+            </div>
+            <div class="coord-section"><b>TITIK A / FROM</b><div id="point-a-fields" class="vector-fields"></div></div>
+            <div class="coord-section"><b>TITIK B / TO</b><div id="point-b-fields" class="vector-fields"></div></div>
+            <div class="bounds-chip"><span>BATAS KOORDINAT</span><b id="normalized-bounds">X: 0 → 0 · Y: 0 → 0 · Z: 0 → 0</b></div>
+            <div class="field-grid">
+              <label class="field-label">CLEARANCE (m)<input id="zone-clearance" data-field="clearance" type="number" min="0" max="20" step="0.05" value="0.25"></label>
+              <label class="field-label">ROTASI Y (°)<input id="target-yaw" data-field="rotationY" type="number" min="-3600" max="3600" step="15" value="0"></label>
+            </div>
+            <div class="field-checks">
+              <label><input id="surface-snap" data-field="surfaceSnap" type="checkbox" checked><span>Tempel ke permukaan</span></label>
+              <label><input id="avoid-overlap" data-field="avoidOverlap" type="checkbox" checked><span>Hindari overlap</span></label>
+              <label><input id="preserve-existing" data-field="preserveExisting" type="checkbox" checked><span>Pertahankan objek lain</span></label>
+            </div>
+          </details>
+          <div class="drawer-button-row">
+            <button id="duplicate-zone-btn" class="drawer-secondary" type="button">DUPLIKASI</button>
+            <button id="delete-zone-btn" class="drawer-danger" type="button">HAPUS LABEL</button>
+          </div>
+          <div id="range-summary" class="range-summary"><b>Koordinat label</b><small>XYZ world space, dalam meter.</small></div>
+        </form>
+      </section>
+
+      <section id="zones-view" class="drawer-view" hidden>
+        <label class="search-wrap"><span>⌕</span><input id="search-input" placeholder="Cari label..." autocomplete="off"></label>
+        <div id="zone-list" class="zone-list"></div>
+        <button id="add-zone-btn" class="drawer-secondary add-zone-btn" type="button">＋ BUAT LABEL MANUAL</button>
+        <div class="drawer-footer"><button id="copy-json-btn" class="drawer-secondary" type="button">SALIN JSON</button><button id="export-json-btn" class="drawer-primary" type="button">UNDUH JSON ↗</button></div>
+      </section>
+    </aside>
+
+    <aside id="json-panel" class="json-drawer" hidden>
+      <div class="drawer-head"><div><small class="drawer-eyebrow">AI-READABLE OUTPUT</small><h2>Spatial JSON</h2></div><button id="json-close-btn" class="drawer-close" type="button" aria-label="Tutup JSON">×</button></div>
+      <small id="json-status" class="json-status">LIVE PREVIEW</small>
+      <pre id="json-preview"><code>{}</code></pre>
+      <div class="json-foot"><span id="json-byte-count">0 bytes</span><span>PAW HAVEN / V1</span></div>
+      <div class="drawer-footer"><button id="import-json-btn" class="drawer-secondary" type="button">IMPOR</button><input id="import-json-file" type="file" accept=".json,application/json" hidden><button id="copy-json-bottom-btn" class="drawer-secondary" type="button">SALIN</button><button id="download-json-bottom-btn" class="drawer-primary" type="button">UNDUH JSON</button></div>
+    </aside>
+    <div id="draft-status" class="draft-status">Kamera siap</div>
+  </div>
+  <script type="module" src="/src/world-editor/editor.js"></script>
+</body>
+</html>

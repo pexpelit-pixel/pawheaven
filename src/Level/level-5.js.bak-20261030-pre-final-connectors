@@ -1,0 +1,64 @@
+import { LEVEL_ENTRY_PORTALS } from '../world/LevelAnchors.js';
+
+export const LEVEL_FIVE_PARKOUR = Object.freeze({
+  spawn: Object.freeze({ x: 0, y: 0.42, z: -35.0, yaw: Math.PI }),
+  finishTrigger: Object.freeze({ x: 0, z: 130.0, rx: 2.25, rz: 1.55 }),
+  platforms: Object.freeze([
+    Object.freeze({ name: 'MemoryGalleryDeck', x: 0, z: -31.0, top: 0.42, width: 14.0, depth: 10.0, color: '#6e9b9c', edge: '#c8eeee', start: true }),
+    Object.freeze({ name: 'GallerySilentBridge', x: 0, z: -24.25, top: 0.42, width: 3.2, depth: 4.0, color: '#79a7aa', edge: '#d6f5f1' }),
+    Object.freeze({ name: 'SilentSymbolsDeck', x: 0, z: -18.0, top: 0.42, width: 14.0, depth: 9.0, color: '#6c91a5', edge: '#d4eafa' }),
+    Object.freeze({ name: 'SymbolsMosaicBridge', x: 0, z: -11.0, top: 0.42, width: 3.2, depth: 5.0, color: '#7b93a8', edge: '#dcecff' }),
+    Object.freeze({ name: 'MemoryMosaicDeck', x: 0, z: -3.0, top: 0.42, width: 14.0, depth: 11.0, color: '#7c91aa', edge: '#e1e7ff' }),
+    Object.freeze({ name: 'MosaicWeightBridge', x: 0, z: 5.5, top: 0.42, width: 3.2, depth: 6.0, color: '#9c927f', edge: '#f2e2c6' }),
+    Object.freeze({ name: 'WeightTruthDeck', x: 0, z: 14.0, top: 0.42, width: 14.0, depth: 11.0, color: '#a58c69', edge: '#f2dfb7' }),
+    Object.freeze({ name: 'WeightLightBridge', x: 0, z: 23.0, top: 0.42, width: 3.2, depth: 7.0, color: '#7c9d91', edge: '#d9f5e7' }),
+    Object.freeze({ name: 'LightWeaverDeck', x: 0, z: 32.0, top: 0.42, width: 14.0, depth: 11.0, color: '#6d9c9a', edge: '#c5f5eb' }),
+    Object.freeze({ name: 'LightClockworkBridge', x: 0, z: 41.0, top: 0.42, width: 3.2, depth: 7.0, color: '#8588a4', edge: '#e5e6ff' }),
+    Object.freeze({ name: 'ClockworkDeck', x: 0, z: 50.0, top: 0.42, width: 14.0, depth: 11.0, color: '#8e8aab', edge: '#e4dbff' }),
+    Object.freeze({ name: 'LabyrinthEntry', x: 0, z: 59.0, top: 0.42, width: 8.0, depth: 7.0, color: '#77749f', edge: '#e6dcff' }),
+    Object.freeze({ name: 'LabyrinthStep01', x: -2.0, z: 63.0, top: 0.82, width: 1.85, depth: 1.72, color: '#8178ad', edge: '#eee5ff' }),
+    Object.freeze({ name: 'LabyrinthRotorA', x: -4.2, z: 66.0, top: 1.22, width: 2.05, depth: 1.85, color: '#8076ad', edge: '#eee5ff', spinBar: true, spinLength: 3.0, spinHeight: 0.78, spinSpeed: 1.68, spinPhase: 0.35 }),
+    Object.freeze({ name: 'LabyrinthNeedleBeam', x: -1.0, z: 69.0, top: 1.38, width: 0.58, depth: 1.92, color: '#66638e', edge: '#e8e2ff', beam: true }),
+    Object.freeze({ name: 'LabyrinthChoiceA_Left', x: -3.8, z: 72.0, top: 1.82, width: 1.82, depth: 1.64, color: '#9684bf', edge: '#f3eaff', choiceGroup: 'observatory-route-a', choiceSide: -1, choiceTrigger: Object.freeze({ x: -1.0, z: 69.0 }), choiceRadius: 5.5, choiceDuration: 4.1, choiceCooldown: 0.78 }),
+    Object.freeze({ name: 'LabyrinthChoiceA_Right', x: 1.8, z: 72.0, top: 1.82, width: 1.82, depth: 1.64, color: '#9684bf', edge: '#f3eaff', choiceGroup: 'observatory-route-a', choiceSide: 1, choiceTrigger: Object.freeze({ x: -1.0, z: 69.0 }), choiceRadius: 5.5, choiceDuration: 4.1, choiceCooldown: 0.78 }),
+    Object.freeze({ name: 'LabyrinthMergeA', x: -1.0, z: 76.0, top: 2.05, width: 2.05, depth: 1.82, color: '#9383bb', edge: '#f3eaff' }),
+    Object.freeze({ name: 'LabyrinthMovingBridge', x: 2.1, z: 79.0, top: 2.34, width: 1.9, depth: 1.65, color: '#8278ad', edge: '#eee5ff', movingAxis: 'x', moveRange: 1.0, moveSpeed: 0.86, movePhase: 0.8 }),
+    Object.freeze({ name: 'LabyrinthRotorB', x: 5.0, z: 82.0, top: 2.62, width: 2.0, depth: 1.85, color: '#8174a9', edge: '#eee5ff', spinBar: true, spinLength: 3.25, spinHeight: 0.82, spinSpeed: -1.92, spinPhase: 1.0 }),
+    Object.freeze({ name: 'LabyrinthChoiceB_Left', x: 2.2, z: 85.0, top: 2.94, width: 1.78, depth: 1.62, color: '#9a88c4', edge: '#f7efff', choiceGroup: 'observatory-route-b', choiceSide: -1, choiceTrigger: Object.freeze({ x: 5.0, z: 82.0 }), choiceRadius: 5.2, choiceDuration: 3.8, choiceCooldown: 0.72 }),
+    Object.freeze({ name: 'LabyrinthChoiceB_Right', x: 7.0, z: 85.0, top: 2.94, width: 1.78, depth: 1.62, color: '#9a88c4', edge: '#f7efff', choiceGroup: 'observatory-route-b', choiceSide: 1, choiceTrigger: Object.freeze({ x: 5.0, z: 82.0 }), choiceRadius: 5.2, choiceDuration: 3.8, choiceCooldown: 0.72 }),
+    Object.freeze({ name: 'LabyrinthExitDeck', x: 4.6, z: 89.0, top: 3.0, width: 7.2, depth: 6.0, color: '#a28dc8', edge: '#fff3ff', checkpoint: 1 }),
+    Object.freeze({ name: 'BraidelRallyDeck', x: 0, z: 99.0, top: 3.0, width: 14.0, depth: 12.0, color: '#6b9fa9', edge: '#d5ffff', checkpoint: 2 }),
+    Object.freeze({ name: 'RoyalApproachBridge', x: 0, z: 107.0, top: 3.0, width: 4.0, depth: 5.0, color: '#9f8aaf', edge: '#f7e6ff' }),
+    Object.freeze({ name: 'PrincessThroneDeck', x: 0, z: 115.0, top: 3.0, width: 14.0, depth: 12.0, color: '#a68cae', edge: '#ffe9f4', checkpoint: 3 }),
+    Object.freeze({ name: 'RoyalFinishBridge', x: 0, z: 124.0, top: 3.0, width: 3.2, depth: 5.0, color: '#b49aa9', edge: '#fff0f4' }),
+    Object.freeze({ name: 'ObservatoryFinishDeck', x: 0, z: 130.0, top: 3.0, width: 6.0, depth: 6.0, color: '#d4b6ce', edge: '#fff5ff', finish: true })
+  ])
+});
+
+export const level5 = {
+  id: 5,
+  name: 'The Forgotten Observatory',
+  token: 'quest:v3:level-5',
+  mechanic: 'observatory-princess',
+  checkpointLabel: 'Memory Beacon',
+  finishTrigger: LEVEL_FIVE_PARKOUR.finishTrigger,
+  finishRequirements: Object.freeze({ checkpoints: true, mechanic: true }),
+  color: '#78999f',
+  bright: '#c8eeee',
+  trigger: LEVEL_ENTRY_PORTALS[4].trigger,
+  itemX: 0,
+  mechanicIntro: 'LEVEL 5: The Forgotten Observatory. Jelajahi Memory Gallery, pecahkan prasasti dan mosaik 12 kubus, atur benda berbobot, pantulkan cahaya, selaraskan roda jam, taklukkan Vanishing Labyrinth, menangkan tiga reli melawan Braidel, lalu pulihkan empat perlengkapan Putri Raja sebelum FINISH.',
+  reward: { pawTokens: 550, badge: 'Memory Keeper', unlock: 'Starlight Paw' },
+  obstacles: []
+};
+
+export const puzzleSequence5 = [
+  [0, -18.0, 0.42],
+  [0, -3.0, 0.42],
+  [0, 14.0, 0.42],
+  [0, 32.0, 0.42],
+  [0, 50.0, 0.42],
+  [4.6, 89.0, 3.0],
+  [0, 99.0, 3.0],
+  [0, 115.0, 3.0]
+];

@@ -1,0 +1,124 @@
+import './WelcomeGreeting.css';
+import angelArt from './angle.png';
+import { applyTranslations } from '../../core/Localization.js';
+import { startTypingFx, stopTypingFx } from '../sound/SoundEvents.js';
+import { playAngelVoice, stopAngelVoice } from '../sound/AngelVoice.js';
+
+export function showWelcomeGreeting(inputController, lifecycle = {}) {
+  if (typeof document === 'undefined' || document.getElementById('welcome-greeting')) return null;
+
+  const root = document.createElement('div');
+  root.id = 'welcome-greeting';
+  root.className = 'story-greeting';
+  root.innerHTML = `
+    <section class="story-greeting__stage" role="dialog" aria-modal="true" aria-labelledby="story-greeting-title" aria-describedby="story-greeting-message" tabindex="-1">
+      <div class="story-greeting__sky story-greeting__sky--one" aria-hidden="true"></div>
+      <div class="story-greeting__sky story-greeting__sky--two" aria-hidden="true"></div>
+      <div class="story-greeting__art">
+        <div class="story-greeting__art-glow" aria-hidden="true"></div>
+        <img class="story-greeting__angel" src="${angelArt}" alt="" draggable="false" />
+        <span class="story-greeting__spark story-greeting__spark--one" aria-hidden="true">✦</span>
+        <span class="story-greeting__spark story-greeting__spark--two" aria-hidden="true">✧</span>
+      </div>
+      <div class="story-greeting__dialogue">
+        <div class="story-greeting__speaker">
+          <span class="story-greeting__speaker-mark" aria-hidden="true">✦</span>
+          <span data-i18n="welcome.eyebrow"></span>
+        </div>
+        <div class="story-greeting__copy">
+          <h1 id="story-greeting-title" data-i18n="welcome.title"></h1>
+          <p id="story-greeting-message" data-i18n="welcome.message" aria-live="polite"></p>
+        </div>
+        <div class="story-greeting__footer">
+          <div class="story-greeting__objective">
+            <span class="story-greeting__gift" aria-hidden="true">🎁</span>
+            <span data-i18n="welcome.objective"></span>
+          </div>
+          <button class="story-greeting__continue" type="button" disabled>
+            <span data-i18n="welcome.continue"></span>
+            <span class="story-greeting__continue-arrow" aria-hidden="true">▶</span>
+          </button>
+        </div>
+        <div class="story-greeting__page-mark" aria-hidden="true"><span>01</span><i></i><span>01</span></div>
+      </div>
+      <div class="story-greeting__hint" aria-hidden="true">✧</div>
+    </section>
+  `;
+
+  const gameRoot = document.getElementById('game') || document.body;
+  gameRoot.append(root);
+  applyTranslations(root);
+
+  const message = root.querySelector('#story-greeting-message');
+  const continueButton = root.querySelector('.story-greeting__continue');
+  const fullMessage = message?.textContent || '';
+  const characters = Array.from(fullMessage);
+  let characterIndex = 0;
+  let typingTimer = 0;
+  let typingComplete = false;
+  let closed = false;
+
+  const finishTyping = () => {
+    if (typingComplete) return;
+    typingComplete = true;
+    stopTypingFx();
+    if (typingTimer) window.clearTimeout(typingTimer);
+    typingTimer = 0;
+    if (message) message.textContent = fullMessage;
+    continueButton.disabled = false;
+    continueButton.classList.add('is-ready');
+  };
+
+  const typeNext = () => {
+    if (closed || typingComplete || !message) return;
+    characterIndex = Math.min(characters.length, characterIndex + 2);
+    message.textContent = characters.slice(0, characterIndex).join('');
+    if (characterIndex >= characters.length) {
+      finishTyping();
+      return;
+    }
+    typingTimer = window.setTimeout(typeNext, 17);
+  };
+
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    stopTypingFx();
+    stopAngelVoice();
+    if (typingTimer) window.clearTimeout(typingTimer);
+    document.removeEventListener('keydown', onKeyDown);
+    inputController?.setLocked?.(false);
+    root.remove();
+    lifecycle.onClose?.();
+  };
+
+  const onKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+      return;
+    }
+    if ((event.key === 'Enter' || event.key === ' ') && !typingComplete) {
+      event.preventDefault();
+      finishTyping();
+    }
+  };
+
+  inputController?.setLocked?.(true);
+  lifecycle.onOpen?.();
+  playAngelVoice('welcome');
+  document.addEventListener('keydown', onKeyDown);
+  root.querySelector('.story-greeting__dialogue')?.addEventListener('click', (event) => {
+    if (!event.target.closest('button') && !typingComplete) finishTyping();
+  });
+  continueButton?.addEventListener('click', close);
+  root.querySelector('.story-greeting__stage')?.focus();
+
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) finishTyping();
+  else {
+    startTypingFx();
+    typingTimer = window.setTimeout(typeNext, 280);
+  }
+
+  return close;
+}

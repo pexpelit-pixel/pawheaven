@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="stylesheet" href="./menu/main-menu.css" />
+    <meta name="theme-color" content="#492538" />
+    <meta name="description" content="Guide K-09, a compact robotic shelter assistant, through a realistic morning safety and care inspection at Paw Haven." data-i18n-content="app.description" />
+    <title data-i18n="app.pageTitle">Paw Haven | K-09 Morning Shift</title>
+    <style>
+      #orientation-gate {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        place-items: center;
+        padding: 28px 22px;
+        overflow: auto;
+        color: #f4fff9;
+        text-align: center;
+        background:
+          radial-gradient(ellipse at 50% 38%, rgba(79, 153, 126, .24), transparent 54%),
+          linear-gradient(145deg, #102b29 0%, #173c37 52%, #0b211f 100%);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      #orientation-gate .orientation-card {
+        width: min(100%, 390px);
+        display: grid;
+        justify-items: center;
+        gap: 13px;
+      }
+      #orientation-gate .orientation-symbol {
+        width: 112px;
+        height: 112px;
+        display: grid;
+        place-items: center;
+        margin-bottom: 7px;
+        border: 1px solid rgba(190, 239, 213, .2);
+        border-radius: 34px;
+        background: rgba(231, 255, 241, .07);
+        box-shadow: 0 18px 55px rgba(0, 0, 0, .2), inset 0 1px rgba(255,255,255,.08);
+      }
+      #orientation-gate .orientation-device {
+        width: 62px;
+        height: 82px;
+        animation: orientation-turn 2.1s ease-in-out infinite;
+        filter: drop-shadow(0 5px 12px rgba(0,0,0,.2));
+      }
+      #orientation-gate .orientation-eyebrow {
+        color: #a8d8c1;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .2em;
+      }
+      #orientation-gate h1 {
+        margin: 0;
+        font-size: clamp(25px, 7vw, 34px);
+        line-height: 1.08;
+        letter-spacing: -.045em;
+      }
+      #orientation-gate p {
+        max-width: 330px;
+        margin: 0;
+        color: rgba(236, 249, 241, .76);
+        font-size: 14px;
+        line-height: 1.65;
+      }
+      #orientation-gate #orientation-lock-button {
+        min-height: 48px;
+        margin-top: 8px;
+        padding: 0 20px;
+        border: 1px solid rgba(205, 255, 223, .25);
+        border-radius: 15px;
+        color: #14362d;
+        background: #b8edcf;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 850;
+        letter-spacing: .04em;
+        cursor: pointer;
+        box-shadow: 0 8px 24px rgba(0,0,0,.16);
+      }
+      #orientation-gate #orientation-lock-button:active { transform: translateY(1px); }
+      #orientation-gate #orientation-status {
+        min-height: 18px;
+        color: rgba(207, 234, 218, .64);
+        font-size: 11px;
+      }
+      @keyframes orientation-turn {
+        0%, 18% { transform: rotate(0deg) scale(1); }
+        72%, 100% { transform: rotate(90deg) scale(.94); }
+      }
+      @media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+        #orientation-gate { display: grid; }
+        #game { visibility: hidden; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #orientation-gate .orientation-device { animation: none; transform: rotate(90deg); }
+      }
+      #splash-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 2147482000;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: #07120f;
+        opacity: 1;
+        visibility: visible;
+        transition: opacity .55s ease, visibility .55s ease;
+      }
+      #splash-screen.is-done {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      #splash-video {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        background: #07120f;
+      }
+      #splash-screen::after {
+        content: "";
+        position: absolute;
+        inset: 55% 0 0;
+        pointer-events: none;
+        background: linear-gradient(180deg, transparent, rgba(0, 12, 9, .54));
+      }
+      .splash-actions {
+        position: absolute;
+        z-index: 1;
+        right: max(22px, env(safe-area-inset-right));
+        bottom: max(20px, env(safe-area-inset-bottom));
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .splash-actions button {
+        min-height: 42px;
+        padding: 0 17px;
+        border: 1px solid rgba(229, 255, 239, .38);
+        border-radius: 13px;
+        color: #effff5;
+        background: rgba(9, 32, 25, .72);
+        backdrop-filter: blur(12px);
+        font: 800 10px Inter, ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: .1em;
+        cursor: pointer;
+      }
+      .splash-actions button[hidden] { display: none; }
+      #splash-play-button {
+        color: #12382d;
+        border-color: rgba(215, 255, 229, .7);
+        background: #c2f0d2;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #splash-screen { transition: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <section id="main-menu" aria-label="Paw Haven main menu">
+      <div class="paw-menu__top-actions" role="group" aria-label="Menu controls">
+        <button id="menu-settings-button" class="paw-menu__settings-button" type="button" aria-controls="menu-settings-panel" aria-expanded="false" data-i18n-aria-label="menu.settingsTitle" title="Settings" data-i18n-title="menu.settingsTitle">
+          <span class="paw-menu__settings-icon" aria-hidden="true">⚙</span>
+          <span data-i18n="menu.settings">SETTINGS</span>
+        </button>
+        <button id="menu-fullscreen-button" class="paw-menu__fullscreen" type="button" aria-label="Enter fullscreen" aria-pressed="false" title="Enter fullscreen" data-i18n-aria-label="menu.fullscreenEnter" data-i18n-title="menu.fullscreenEnter">
+          <span class="paw-menu__fullscreen-icon" aria-hidden="true">⛶</span>
+          <span id="menu-fullscreen-label" data-i18n="menu.fullscreen">FULL SCREEN</span>
+        </button>
+      </div>
+      <section id="menu-settings-panel" class="paw-menu__settings-overlay" role="dialog" aria-modal="true" aria-labelledby="menu-settings-title" hidden>
+        <div class="paw-menu__settings-card">
+          <header class="paw-menu__settings-header">
+            <div>
+              <p class="paw-menu__settings-kicker" data-i18n="menu.settingsEyebrow">MAKE IT YOURS</p>
+              <h2 id="menu-settings-title" data-i18n="menu.settingsTitle">Settings</h2>
+            </div>
+            <button id="menu-settings-close" class="paw-menu__settings-close" type="button" aria-label="Close settings" data-i18n-aria-label="menu.settingsClose">×</button>
+          </header>
+          <div class="paw-menu__language-copy">
+            <strong data-i18n="menu.language">LANGUAGE</strong>
+            <p data-i18n="menu.languageDescription">Choose the language used throughout Paw Haven.</p>
+          </div>
+          <div class="paw-menu__language-options" role="group" aria-label="Language selection" data-i18n-aria-label="menu.language">
+            <button class="paw-menu__language-option" type="button" data-menu-locale="en" aria-pressed="false">
+              <span class="paw-menu__language-code">EN</span>
+              <span class="paw-menu__language-name" lang="en">English</span>
+              <span class="paw-menu__language-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="paw-menu__language-option" type="button" data-menu-locale="id" aria-pressed="false">
+              <span class="paw-menu__language-code">ID</span>
+              <span class="paw-menu__language-name" lang="id">Bahasa Indonesia</span>
+              <span class="paw-menu__language-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="paw-menu__language-option" type="button" data-menu-locale="vn" aria-pressed="false">
+              <span class="paw-menu__language-code">VI</span>
+              <span class="paw-menu__language-name" lang="vi">Tiếng Việt</span>
+              <span class="paw-menu__language-check" aria-hidden="true">✓</span>
+            </button>
+          </div>
+          <p id="menu-language-status" class="paw-menu__language-status" role="status" aria-live="polite" data-i18n="menu.languageSelected" hidden>Language updated.</p>
+        </div>
+      </section>
+      <div class="paw-menu__content">
+        <div class="paw-menu__brand">
+          <span class="paw-menu__mark" aria-hidden="true">✦</span>
+          <div class="paw-menu__brand-copy">
+            <strong data-i18n="menu.eyebrow">PAW HAVEN</strong>
+            <small data-i18n="menu.series">BIRTHDAY EDITION</small>
+          </div>
+        </div>
+        <p class="paw-menu__eyebrow" data-i18n="menu.occasion">A LITTLE CELEBRATION FOR YOU</p>
+        <h1 class="paw-menu__title" data-i18n="menu.title">Hello Yennhi!!</h1>
+        <p class="paw-menu__subtitle" data-i18n="menu.subtitle">Happy birthday!!!</p>
+        <p class="paw-menu__note" data-i18n="menu.note">A cozy little world made just for you ♡</p>
+        <div class="paw-menu__footer">
+          <div class="paw-menu__progress-meta">
+            <span data-i18n="menu.progressLabel">PREPARING GAME RESOURCES</span>
+            <strong id="menu-progress-percent" class="paw-menu__percent">0%</strong>
+          </div>
+          <div class="paw-menu__track" role="progressbar" aria-label="Game resource preparation" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="menu-progress-bar" class="paw-menu__bar"></div>
+          </div>
+          <p id="menu-progress-status" class="paw-menu__status" role="status" aria-live="polite" data-i18n="menu.preparing">Preparing game resources...</p>
+          <button id="menu-play-button" type="button" data-ui-sound="confirm" disabled>
+            <span data-i18n="menu.play">PLAY</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section id="orientation-gate" role="dialog" aria-modal="true" aria-labelledby="orientation-title" data-i18n-aria-label="orientation.dialog">
+      <div class="orientation-card">
+        <div class="orientation-symbol" aria-hidden="true">
+          <svg class="orientation-device" viewBox="0 0 62 82" fill="none">
+            <rect x="4" y="2" width="54" height="78" rx="10" stroke="#C8F2D8" stroke-width="3"/>
+            <path d="M24 9h14" stroke="#C8F2D8" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="31" cy="70" r="3" fill="#C8F2D8"/>
+            <path d="M12 17h38" stroke="#8BCBA8" stroke-width="1.5" stroke-linecap="round" opacity=".7"/>
+          </svg>
+        </div>
+        <span class="orientation-eyebrow" data-i18n="orientation.eyebrow">PAW HAVEN · MOBILE MODE</span>
+        <h1 id="orientation-title" data-i18n="orientation.title">Landscape required</h1>
+        <p data-i18n="orientation.description">Putar perangkat ke posisi mendatar sebelum masuk. Paw Haven akan membuka loading screen secara otomatis setelah mode landscape terdeteksi.</p>
+        <button id="orientation-lock-button" type="button" data-i18n="orientation.lockButton">COBA KUNCI LANDSCAPE OTOMATIS</button>
+        <p id="orientation-status" aria-live="polite" data-i18n="orientation.waiting">Menunggu perangkat diputar ke landscape…</p>
+      </div>
+    </section>
+    <section id="splash-screen" role="region" aria-label="Paw Haven intro" data-i18n-aria-label="splash.region">
+      <video id="splash-video" muted playsinline webkit-playsinline preload="none" aria-hidden="true">
+        <source src="./splash/splash.mp4" type="video/mp4">
+      </video>
+      <div class="splash-actions">
+        <button id="splash-play-button" type="button" hidden data-i18n="splash.play">PLAY INTRO</button>
+        <button id="splash-skip-button" type="button" data-i18n="splash.skip">SKIP INTRO</button>
+      </div>
+    </section>
+    <div id="game" aria-label="Paw Haven robotic dog simulator" data-i18n-aria-label="app.gameLabel">
+      <canvas id="game-canvas" aria-label="3D game world" data-i18n-aria-label="app.canvasLabel"></canvas>
+      <div class="vignette" aria-hidden="true"></div>
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Paw Haven home" data-i18n-aria-label="app.homeLabel"><span class="brand-mark" aria-hidden="true"><span class="ui-icon" data-icon="paw"></span></span><span>PAW <b>HAVEN</b><small>K-09 SHELTER PATROL</small></span></a>
+        <div class="top-center"><span class="live-dot"></span> <span data-i18n="header.shelterOpen">SHELTER OPEN</span> <span class="top-separator">/</span> <span id="clock-label" data-i18n="header.morningRoutine">MORNING ROUTINE</span></div>
+        <div class="top-actions"><span class="fps-pill" title="Frames per second" data-i18n-title="header.fpsTitle"><i></i><b id="fps-value">--</b><span>FPS</span></span><button class="icon-btn" id="settings-toggle" aria-label="Open settings" title="Settings" data-i18n-aria-label="header.openSettings" data-i18n-title="header.settingsTitle"><span class="ui-icon" data-icon="settings" aria-hidden="true"></span></button><button class="icon-btn ui-toggle" id="ui-toggle" aria-label="Hide interface" aria-pressed="false" title="Hide interface (H)" data-i18n-aria-label="header.hideInterface" data-i18n-title="header.hideInterfaceHotkey"><span class="ui-icon" data-icon="eye-off" aria-hidden="true"></span></button></div>
+      </header>
+      <div class="game-quick-actions" id="game-quick-actions" aria-label="Field inventory actions" data-i18n-aria-label="inventory.fieldActions">
+        <button type="button" class="icon-btn inventory-toggle" id="inventory-toggle" aria-label="Open backpack inventory" aria-expanded="false" title="Backpack inventory (I)" data-i18n-aria-label="inventory.openBackpack" data-i18n-title="inventory.backpackTitle"><span class="ui-icon" data-icon="package" aria-hidden="true"></span><span class="inventory-count" id="inventory-count">0</span></button>
+      </div>
+      <section class="mission-card glass-panel" aria-label="Current activity" data-i18n-aria-label="mission.currentActivity">
+        <div class="eyebrow"><span class="eyebrow-icon ui-icon" data-icon="target" aria-hidden="true"></span> <span data-i18n="mission.morningCheck">MORNING CHECK</span></div>
+        <h1><span data-i18n="mission.k09">K-09's</span><br /><em data-i18n="mission.firstRounds">first rounds.</em></h1>
+        <p data-i18n="mission.description">Morning intake is approaching. Guide K-09 through a routine safety check: keep kennel aisles clear, check the water bowls, and make sure the rest and play bays are ready for the dogs.</p>
+        <div class="mission-divider"></div>
+        <div class="activity-row"><span class="activity-symbol" aria-hidden="true"><span class="ui-icon" data-icon="activity"></span></span><div><b id="activity-title">Morning check ready</b><small id="activity-caption">Inspect the shelter before intake</small></div><span class="activity-status" aria-hidden="true"></span></div>
+        <div class="paw-token-status" id="level-reward-status" role="status" aria-label="Level rewards" data-i18n-aria-label="levelRewards.title" title="Complete levels to earn trails and badges.">
+          <span class="paw-token-mark" aria-hidden="true">✦</span>
+          <span class="paw-token-status__value"><small data-i18n="levelRewards.currency">PAW TOKENS</small><strong id="paw-token-balance">0</strong></span>
+          <span class="paw-token-status__badges"><strong id="level-badge-count">0</strong><small data-i18n="levelRewards.badges">BADGES</small></span>
+        </div>
+      </section>
+      <aside class="right-note glass-panel"><span class="note-sparkle ui-icon" data-icon="speed" aria-hidden="true"></span><span><b data-i18n="mission.routine01">ROUTINE 01</b><small data-i18n="mission.comfortWaterPlay">Comfort · water · play</small></span></aside>
+      <div class="center-hint" id="center-hint"><span class="hint-dot"></span><span id="hint-text" data-i18n="hint.touchInitial">Left: drag to walk · swipe up 85% toward the top edge to lock auto-run · right: drag camera</span></div>
+      <div class="interaction-prompt" id="interaction-prompt" hidden aria-live="polite"><span class="interaction-key">E</span><span id="interaction-prompt-text"></span></div>
+      <div class="camera-controls glass-panel" id="camera-controls" aria-label="Camera controls" data-i18n-aria-label="camera.controls"><button type="button" data-camera-zoom="in" aria-label="Zoom in" title="Zoom in" data-i18n-aria-label="camera.zoomIn" data-i18n-title="camera.zoomIn"><span class="ui-icon" data-icon="zoom-in" aria-hidden="true"></span></button><button type="button" data-camera-zoom="reset" aria-label="Reset camera" title="Reset camera view" data-i18n-aria-label="camera.reset" data-i18n-title="camera.reset"><span class="ui-icon" data-icon="camera-reset" aria-hidden="true"></span></button><button type="button" data-camera-zoom="out" aria-label="Zoom out" title="Zoom out" data-i18n-aria-label="camera.zoomOut" data-i18n-title="camera.zoomOut"><span class="ui-icon" data-icon="zoom-out" aria-hidden="true"></span></button></div>
+      <aside class="inventory-panel glass-panel" id="inventory-panel" hidden aria-label="Inventory" data-i18n-aria-label="inventory.panelLabel">
+        <div class="inventory-head"><div><span class="inventory-eyebrow" data-i18n="inventory.fieldPack">K-09 FIELD PACK</span><b data-i18n="inventory.title">Inventory</b><small id="inventory-panel-count" data-i18n="inventory.slotsUsed">0 / 12 SLOTS USED</small></div><button type="button" class="icon-btn inventory-close" id="inventory-close" aria-label="Close inventory" data-i18n-aria-label="inventory.close"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></div>
+        <div class="inventory-slots" id="inventory-slots" role="group" aria-label="12 inventory slots" data-i18n-aria-label="inventory.slotsLabel"></div>
+        <div class="inventory-foot"><span data-i18n="inventory.usageTip">Tap a slot to carry its item in the mouth. Tap an empty slot to store the carried item.</span><button type="button" id="inventory-drop" disabled><span data-i18n="inventory.dropItem">DROP ITEM</span> <kbd>Q</kbd></button></div>
+      </aside>
+      <section class="touch-controls" id="touch-controls" aria-label="Touch controls" data-i18n-aria-label="controls.touch">
+        <div class="touch-zone" id="touch-zone" aria-label="Start movement anywhere on the left side" data-i18n-aria-label="controls.moveZone"></div>
+        <div class="touch-stick" id="touch-stick" aria-label="Move joystick" data-i18n-aria-label="controls.joystick"><div class="touch-percent" id="touch-percent" aria-live="off">0%</div><div class="touch-stick-ring"></div><div class="touch-knob" id="touch-knob"></div></div>
+        <div class="touch-actions" aria-label="Character actions" data-i18n-aria-label="controls.characterActions"><button id="touch-jump" class="touch-action jump-action" aria-label="Jump" title="Jump" data-i18n-aria-label="controls.jump" data-i18n-title="controls.jump"><span class="ui-icon" data-icon="jump" aria-hidden="true"></span><small data-i18n="controls.jump">JUMP</small></button><button id="touch-sit" class="touch-action sit-action" aria-label="Sit" aria-pressed="false" title="Tap to sit or stand" data-i18n-aria-label="controls.sit" data-i18n-title="controls.tapSitStand"><span class="ui-icon" data-icon="sit" aria-hidden="true"></span><small data-i18n="controls.sit">SIT</small></button><button id="touch-sprint" class="touch-action sprint-action" aria-label="Hold to sprint; release to walk" aria-pressed="false" title="Hold to sprint, release to walk" data-i18n-aria-label="controls.holdSprint" data-i18n-title="controls.holdSprintTitle"><span class="ui-icon" data-icon="run" aria-hidden="true"></span><small data-i18n="controls.run">RUN</small></button></div>
+        <button type="button" id="touch-interact" class="touch-action touch-interact-button" aria-label="Pick up or store item" title="Pick up or store item (E)" data-i18n-aria-label="controls.pickupStore" data-i18n-title="controls.pickupStoreKey" disabled><span class="ui-icon" data-icon="paw" aria-hidden="true"></span><small data-i18n="controls.pickUp">PICK UP</small></button>
+      </section>
+      <footer class="bottom-ui">
+        <div class="controls-panel glass-panel">
+          <div class="controls-heading"><span data-i18n="controls.fieldControls">FIELD CONTROLS</span><span class="controls-heading-line"></span><span class="controls-live" data-i18n="controls.hideHud">H TO HIDE HUD</span></div>
+          <div class="control-grid">
+            <div class="control-item"><div class="key-cluster"><kbd>W</kbd><div><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div></div><span data-i18n="controls.move">MOVE</span></div>
+            <div class="control-item"><kbd class="key-wide">SPACE</kbd><span data-i18n="controls.jump">JUMP</span></div>
+            <div class="control-item"><kbd class="key-wide">SHIFT</kbd><span data-i18n="controls.sprint">SPRINT</span></div><div class="control-item"><kbd class="key-wide">C</kbd><span data-i18n="controls.sitStand">SIT / STAND</span></div>
+            <div class="control-item"><div class="mouse-key"><span></span></div><span data-i18n="controls.orbit">ORBIT</span></div><div class="control-item"><kbd class="key-wide">+ / −</kbd><span data-i18n="controls.zoom">ZOOM</span></div>
+          </div>
+        </div>
+        <div class="bottom-right"><div class="quality-chip"><span class="quality-dot"></span><span id="quality-label" data-i18n="quality.current">MEDIUM QUALITY</span></div><button id="fullscreen-button-desktop" class="fullscreen-button" data-fullscreen aria-label="Enter fullscreen" data-i18n-aria-label="quality.fullscreenEnter"><span class="ui-icon" data-icon="fullscreen" aria-hidden="true"></span><span data-button-label data-i18n="quality.fullscreen">FULLSCREEN</span></button></div>
+      </footer>
+      <section class="settings-panel glass-panel" id="settings-panel" hidden aria-label="Graphics settings" data-i18n-aria-label="settings.graphicsLabel">
+        <div class="settings-head"><div><span class="eyebrow"><span class="ui-icon eyebrow-icon" data-icon="settings" aria-hidden="true"></span> <span data-i18n="settings.visualPreferences">VISUAL PREFERENCES</span></span><h2 data-i18n="settings.title">Make it yours.</h2></div><button class="icon-btn close-settings" id="settings-close" aria-label="Close settings" data-i18n-aria-label="settings.close"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></div>
+        <p class="settings-copy" data-i18n="settings.description">Low disables shadows and post-processing for speed. Medium adds soft shadows. High adds subtle bloom only on capable desktop devices.</p>
+        <div class="quality-options" role="group" aria-label="Graphics quality" data-i18n-aria-label="settings.quality">
+          <button class="quality-option" data-quality="low"><span class="quality-glyph ui-icon" data-icon="speed" aria-hidden="true"></span><b data-i18n="settings.low">Low</b><small data-i18n="settings.lowDescription">Fastest · no shadows</small></button>
+          <button class="quality-option selected" data-quality="medium"><span class="quality-glyph ui-icon" data-icon="eye" aria-hidden="true"></span><b data-i18n="settings.medium">Medium</b><small data-i18n="settings.mediumDescription">Soft shadows</small></button>
+          <button class="quality-option" data-quality="high"><span class="quality-glyph ui-icon" data-icon="target" aria-hidden="true"></span><b data-i18n="settings.high">High</b><small data-i18n="settings.highDescription">Bloom · desktop</small></button>
+        </div>
+        <div class="auto-run-setting">
+          <div class="auto-run-setting-head">
+            <div class="auto-run-setting-copy">
+              <b data-i18n="settings.autoRunThreshold">Analog auto-run threshold</b>
+              <small data-i18n="settings.autoRunThresholdDescription">Swipe upward to this joystick percentage to lock auto-run</small>
+            </div>
+            <output id="auto-run-threshold-value" for="auto-run-threshold">70%</output>
+          </div>
+          <input id="auto-run-threshold" class="auto-run-threshold-slider" type="range" min="40" max="95" step="5" value="70" aria-label="Analog auto-run threshold" data-i18n-aria-label="settings.autoRunThresholdAria">
+          <div class="auto-run-threshold-range"><span>40%</span><span>95%</span></div>
+        </div>
+        <div class="theme-preview-row">
+          <span class="ui-icon setting-row-icon" data-icon="sparkles" aria-hidden="true"></span>
+          <div class="theme-preview-copy"><b data-i18n="settings.birthdayTheme">Birthday theme</b><small data-i18n="settings.birthdayPreview">Experimental preview · this session only</small></div>
+          <button id="birthday-theme-toggle" class="theme-switch" type="button" aria-pressed="false" aria-label="Enable birthday theme" data-i18n-aria-label="settings.enableBirthdayTheme"><span data-i18n="state.off">OFF</span></button>
+        </div>
+        <div class="display-setting-row developer-mode-row">
+          <span class="ui-icon setting-row-icon" data-icon="code-2" aria-hidden="true"></span>
+          <div class="display-setting-copy">
+            <b data-i18n="settings.developerMode">Developer Mode</b>
+            <small data-i18n="settings.developerDescription">Unlock advanced diagnostics and test controls</small>
+          </div>
+          <button id="developer-mode-toggle" class="setting-switch" type="button" role="switch" aria-checked="false" aria-label="Enable Developer Mode" data-i18n-aria-label="settings.enableDeveloper"><span data-i18n="state.off">OFF</span></button>
+        </div>
+        <details class="advanced-settings" id="advanced-settings" hidden>
+          <summary class="advanced-settings-summary">
+            <span class="ui-icon advanced-settings-icon" data-icon="settings" aria-hidden="true"></span>
+            <span class="advanced-settings-title"><b data-i18n="settings.advanced">Advanced settings</b><small data-i18n="settings.developerControls">Developer controls</small></span>
+            <span class="advanced-chevron ui-icon" data-icon="chevron-down" aria-hidden="true"></span>
+          </summary>
+          <div class="advanced-settings-body">
+            <div class="display-setting-row">
+              <span class="ui-icon setting-row-icon" data-icon="speed" aria-hidden="true"></span>
+              <div class="display-setting-copy">
+                <b data-i18n="settings.showFPS">Show FPS</b>
+                <small data-i18n="settings.liveFPS">Live frame rate · performance monitor</small>
+              </div>
+              <button id="fps-toggle" class="setting-switch" type="button" role="switch" aria-checked="false" aria-label="Show FPS counter" data-i18n-aria-label="settings.showFPSCounter"><span data-i18n="state.off">OFF</span></button>
+            </div>
+            <div class="display-setting-row">
+              <span class="ui-icon setting-row-icon" data-icon="activity" aria-hidden="true"></span>
+              <div class="display-setting-copy">
+                <b data-i18n="settings.morningCheck">Morning Check</b>
+                <small data-i18n="settings.morningCheckDescription">Show or hide the routine mission overlay</small>
+              </div>
+              <button id="morning-check-toggle" class="setting-switch" type="button" role="switch" aria-checked="true" aria-label="Disable Morning Check"><span>ON</span></button>
+            </div>
+          </div>
+        </details>
+        <div class="settings-foot"><span><span data-i18n="settings.webgl2">WEBGL2</span> <i>•</i> <span data-i18n="settings.rapierPhysics">RAPIER PHYSICS</span></span><div class="settings-foot-actions"><button id="fullscreen-button" class="fullscreen-button settings-fullscreen" data-fullscreen aria-label="Enter fullscreen" data-i18n-aria-label="quality.fullscreenEnter"><span class="ui-icon" data-icon="fullscreen" aria-hidden="true"></span><span data-button-label data-i18n="quality.fullscreen">FULLSCREEN</span></button><button id="settings-done"><span data-i18n="settings.done">DONE</span> <span class="ui-icon" data-icon="arrow-up-right" aria-hidden="true"></span></button></div></div>
+      </section>
+      <div class="portal-fade" id="portal-fade" aria-hidden="true"></div>
+      <button type="button" class="cinematic-skip" id="cinematic-skip" hidden>SKIP INTRO <span aria-hidden="true">↗</span></button>
+      <section class="loading-screen" id="loading-screen" aria-live="polite">
+        <div class="loading-brand"><span class="brand-mark" aria-hidden="true"><span class="ui-icon" data-icon="paw"></span></span><div>PAW <b>HAVEN</b><small>K-09 SHELTER PATROL</small></div></div>
+        <div class="loading-art" aria-hidden="true"><div class="loading-orbit orbit-one"></div><div class="loading-orbit orbit-two"></div><div class="loading-paw"><span class="ui-icon" data-icon="paw" aria-hidden="true"></span></div><span class="loading-star star-one ui-icon" data-icon="sparkles" aria-hidden="true"></span><span class="loading-star star-two ui-icon" data-icon="sparkles" aria-hidden="true"></span><span class="loading-star star-three ui-icon" data-icon="sparkles" aria-hidden="true"></span></div>
+        <div class="loading-copy"><span class="eyebrow" data-i18n="loading.eyebrow">MORNING CHECK · ROUTINE 01</span><h2 id="loading-title" data-i18n="loading.openDoors.title">Opening Paw Haven…</h2><p id="loading-message">Checking the sealed floor, washable bedding and water stations.</p></div>
+        <div class="loading-meter"><div class="meter-track"><div id="loading-progress"></div></div><div class="meter-meta"><span id="loading-percent">0%</span><span data-i18n="loading.systems">SHELTER SYSTEMS</span></div></div>
+      </section>
+      <section class="error-screen" id="error-screen" hidden role="alert"><div class="error-card glass-panel"><span class="error-symbol" aria-hidden="true"><span class="ui-icon" data-icon="alert"></span></span><h2 data-i18n="error.title">We couldn't open the shelter.</h2><p id="error-message" data-i18n="error.message">Your browser may not support the graphics features this game needs.</p><button id="retry-button" data-i18n="loading.tryAgain">TRY AGAIN</button></div></section>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

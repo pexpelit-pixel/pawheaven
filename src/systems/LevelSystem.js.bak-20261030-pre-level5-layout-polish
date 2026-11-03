@@ -1,0 +1,1450 @@
+import * as THREE from 'three';
+import { PhysicsWorld } from '../physics/PhysicsWorld.js';
+import { LEVELS, PARKOUR_COURSES, PUZZLE_SEQUENCES, LEVEL_ONE_PARKOUR, LEVEL_TWO_PARKOUR, LEVEL_THREE_PARKOUR, LEVEL_FOUR_PARKOUR } from '../Level/index.js';
+import WORLD_RULES from '../world/worldrules.json';
+import { buildObservatoryLevel5, updateObservatoryLevel5 } from './ObservatoryLevel5.js';
+
+const QUEST_TYPES = ['quest:v3:level-1', 'quest:v3:level-2', 'quest:v3:level-3', 'quest:v3:level-4', 'quest:v3:level-5'];
+const PROGRESS_KEY = 'paw-haven-level-progress-v3';
+const LEGACY_PROGRESS_KEY = 'paw-haven-level-progress-v2';
+const HOME = WORLD_RULES.playerSpawn || { x: -17.216117913318985, y: 0.0775, z: -4.682203776528315, yaw: 0 };
+
+// Rapier 0.21 exposes a rigid body's colliders by index, not through body.colliders().
+// Keep visual phase changes and collision changes on the same timed-board state.
+function setRigidBodyCollidersEnabled(body, enabled) {
+  if (!body || typeof body.numColliders !== 'function' || typeof body.collider !== 'function') return 0;
+  let changed = 0;
+  try {
+    const count = body.numColliders();
+    for (let index = 0; index < count; index++) {
+      const collider = body.collider(index);
+      if (!collider) continue;
+      collider.setEnabled(Boolean(enabled));
+      changed++;
+    }
+  } catch (error) {
+    console.warn('Could not update a timed platform collider.', error);
+  }
+  return changed;
+}
+
+function setTimedChoiceBoardEnabled(record, enabled) {
+  const motion = record?.group?.userData?.boardMotion;
+  if (!motion?.choiceState) return;
+  const active = Boolean(enabled);
+  setRigidBodyCollidersEnabled(record.body, active);
+  motion.choiceEnabled = active;
+
+  const mesh = motion.choiceMesh;
+  if (!mesh) return;
+  mesh.visible = active;
+  if (mesh.material) {
+    mesh.material.opacity = active ? 0.96 : 0;
+    mesh.material.emissiveIntensity = active ? 1.15 : 0.12;
+    mesh.material.color.set(active ? '#c7a8ff' : '#756a91');
+    mesh.material.emissive.set(active ? '#8a56e8' : '#302543');
+  }
+}
+
+export class LevelSystem {
+  constructor(game, scene, shelter) {
+    this.game = game;
+    this.scene = scene;
+    this.shelter = shelter;
+    this.basePhysics = game.physics;
+    this.activePhysics = null;
+    this.activeArena = null;
+    this.activeLevel = null;
+    this.questObject = null;
+    this.special = null;
+    this.checkpointGroups = [];
+    this.checkpointIndex = 0;
+    this.parkourRespawnPoint = null;
+    this.finishTriggerLatched = false;
+    this.hiddenPickupRoots = [];
+    this.transitioning = false;
+    this.disposed = false;
+    this.elapsed = 0;
+    this.currentPrompt = '';
+    this.completed = new Set();
+    this.pawTokens = 0;
+    this.parkourBonusV2Applied = false;
+    this.parkourLevel2BonusApplied = false;
+    this.parkourLevel2RewardRecoveryApplied = false;
+    this.rewarded = new Set();
+    this.unlockedBadges = new Set();
+    this.unlockedRewards = new Set();
+    this.gateCollider = null;
+    this.gateVisual = this.shelter.root.getObjectByName('LevelGateVisual');
+    try {
+      const currentRaw = localStorage.getItem(PROGRESS_KEY);
+      const saved = JSON.parse(currentRaw || '{}');
+      const legacy = currentRaw ? {} : JSON.parse(localStorage.getItem(LEGACY_PROGRESS_KEY) || '{}');
+      // Keep earned currency across the new mission season, but replay redesigned levels.
+      if (Array.isArray(saved.completed)) {
+        for (const id of saved.completed) if (Number.isInteger(id) && id >= 1 && id <= 5) this.completed.add(id);
+      }
+      const savedCurrency = Number.isSafeInteger(saved.pawTokens) && saved.pawTokens >= 0
+        ? saved.pawTokens
+        : Number.isSafeInteger(legacy.pawTokens) && legacy.pawTokens >= 0 ? legacy.pawTokens : 0;
+      this.pawTokens = savedCurrency;
+      if (Array.isArray(saved.rewarded)) {
+        for (const id of saved.rewarded) if (Number.isInteger(id) && id >= 1 && id <= 5) this.rewarded.add(id);
+      }
+      if (Array.isArray(saved.unlockedBadges)) {
+        for (const badge of saved.unlockedBadges) if (typeof badge === 'string') this.unlockedBadges.add(badge);
+      }
+      if (Array.isArray(saved.unlockedRewards)) {
+        for (const reward of saved.unlockedRewards) if (typeof reward === 'string') this.unlockedRewards.add(reward);
+      }
+      this.parkourBonusV2Applied = saved.parkourBonusV2Applied === true;
+      this.parkourLevel2BonusApplied = saved.parkourLevel2BonusApplied === true;
+      this.parkourLevel2RewardRecoveryApplied = saved.parkourLevel2RewardRecoveryApplied === true;
+    } catch { /* Start with empty quest progress if storage is unavailable. */ }
+    this.game.pawTokens = this.pawTokens;
+    this.game.levelBadges = [...this.unlockedBadges];
+    this.game.levelUnlocks = [...this.unlockedRewards];
+    this.updateRewardHUD();
+    this.installGateCollider();
+    this.refreshGate();
+    this.refreshGiftRequirement();
+  }
+
+  installGateCollider() {
+    if (!this.basePhysics?.world || this.gateCollider || this.completed.size >= LEVELS.length) return;
+    try {
+      const desc = this.basePhysics.api.ColliderDesc.cuboid(0.07, 1.36, 0.73)
+        .setTranslation(-15.65, 1.4, 10.265)
+        .setFriction(0.8);
+      this.gateCollider = this.basePhysics.world.createCollider(desc, this.basePhysics.fixedBody);
+    } catch (error) {
+      console.warn('Could not install the level gate collider.', error);
+    }
+  }
+
+  refreshGate() {
+    const open = this.completed.size >= LEVELS.length;
+    if (this.gateVisual) {
+      this.gateVisual.visible = !open;
+      this.gateVisual.traverse((object) => { if (object.isMesh) object.visible = !open; });
+    }
+    if (open && this.gateCollider && this.basePhysics?.world) {
+      try { this.basePhysics.world.removeCollider(this.gateCollider, true); } catch { /* The base world may already be disposing. */ }
+      this.gateCollider = null;
+    } else if (!open) {
+      this.installGateCollider();
+    }
+  }
+
+  updateRewardHUD() {
+    const tokenLabel = document.getElementById('paw-token-balance');
+    if (tokenLabel) tokenLabel.textContent = String(this.pawTokens);
+    const badgeLabel = document.getElementById('level-badge-count');
+    if (badgeLabel) badgeLabel.textContent = String(this.unlockedBadges.size);
+    const rewardStatus = document.getElementById('level-reward-status');
+    if (rewardStatus) {
+      rewardStatus.title = this.unlockedRewards.size
+        ? 'Unlocked: ' + [...this.unlockedRewards].join(', ')
+        : 'Complete levels to earn trails and badges.';
+    }
+  }
+
+  saveProgress() {
+    try {
+      localStorage.setItem(PROGRESS_KEY, JSON.stringify({
+        completed: [...this.completed].sort((a, b) => a - b),
+        pawTokens: this.pawTokens,
+        rewarded: [...this.rewarded].sort((a, b) => a - b),
+        parkourBonusV2Applied: this.parkourBonusV2Applied,
+        parkourLevel2BonusApplied: this.parkourLevel2BonusApplied,
+        parkourLevel2RewardRecoveryApplied: this.parkourLevel2RewardRecoveryApplied,
+        unlockedBadges: [...this.unlockedBadges].sort(),
+        unlockedRewards: [...this.unlockedRewards].sort()
+      }));
+    } catch { /* The current session still keeps progress in memory. */ }
+  }
+
+  refreshGiftRequirement() {
+    const inventory = this.game.inventory;
+    const dog = this.game.dog;
+    // Completing a level counts toward the gift quest even if its souvenir could not fit in the inventory.
+    dog.levelQuestReady = QUEST_TYPES.every((token, index) =>
+      Boolean(inventory?.hasQuestItems?.([token])) || this.completed.has(index + 1)
+    );
+    const position = dog?.group?.position;
+    if (dog.levelQuestReady && position
+      && Math.hypot(position.x - 0.4091122236594593, position.z - 7.668321010529183) < 0.88) {
+      dog.levelGiftTriggerActivated = true;
+    }
+  }
+
+  update(dt) {
+    if (this.disposed || this.transitioning) return;
+    this.refreshGiftRequirement();
+
+    if (this.activeLevel) {
+      this.updateArena(dt);
+      return;
+    }
+
+    const position = this.game.dog?.group?.position;
+    if (!position) return;
+
+    for (const level of LEVELS) {
+      if (Math.abs(position.x - level.trigger.x) > level.trigger.rx
+        || Math.abs(position.z - level.trigger.z) > level.trigger.rz) continue;
+
+      // All five levels remain replayable. Completion and reward flags prevent
+      // duplicate rewards, so an existing quest token must not block arena entry.
+      this.enterLevel(level);
+      break;
+    }
+  }
+
+  async enterLevel(level) {
+    if (this.transitioning || this.disposed || !this.basePhysics) return;
+    this.transitioning = true;
+    let arena = null;
+    let physics = null;
+    try {
+      arena = this.buildArena(level);
+      physics = await PhysicsWorld.create(arena.solids);
+      const kinematicType = physics.api.RigidBodyType.KinematicPositionBased;
+      for (const record of physics.dynamicProps || []) {
+        if (!record.body) continue;
+        const boardMotion = record.group?.userData?.boardMotion;
+        const spinMotion = record.group?.userData?.spinMotion;
+        if (!boardMotion && !spinMotion) continue;
+        record.body.setBodyType(kinematicType, true);
+        record.body.setGravityScale(0, true);
+        record.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        record.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+        if (boardMotion?.choiceState) setTimedChoiceBoardEnabled(record, false);
+        if (spinMotion) {
+          const half = spinMotion.currentAngle * 0.5;
+          record.body.setRotation({ x: 0, y: Math.sin(half), z: 0, w: Math.cos(half) }, true);
+          record.body.setNextKinematicRotation?.({ x: 0, y: Math.sin(half), z: 0, w: Math.cos(half) });
+        }
+      }
+      if (this.disposed) {
+        physics.dispose();
+        this.disposeArena(arena.group);
+        return;
+      }
+      this.activeArena = arena.group;
+      this.activePhysics = physics;
+      this.activeLevel = level;
+      this.questObject = arena.questObject;
+      this.animatedMechanic = arena.animatedMechanic || null;
+      this.animatedMechanic2 = arena.animatedMechanic2 || null;
+      this.special = arena.special || null;
+      this.checkpointGroups = arena.checkpointGroups || [];
+      this.checkpointIndex = 0;
+      this.finishTriggerLatched = false;
+      this.elapsed = 0;
+      this.scene.add(arena.group);
+      this.shelter.root.visible = false;
+      this.hiddenPickupRoots = [];
+      for (const item of this.game.inventory?.items || []) {
+        if (!item.root) continue;
+        this.hiddenPickupRoots.push({ root: item.root, visible: item.root.visible });
+        item.root.visible = false;
+      }
+      if (this.game.inventory?.ringIdleMesh) this.game.inventory.ringIdleMesh.visible = false;
+      if (this.game.inventory?.ringActiveMesh) this.game.inventory.ringActiveMesh.visible = false;
+      this.game.physics = physics;
+      this.game.movement.physics = physics;
+      this.game.movement.setWorldBounds?.(level.id === 3
+        ? { minX: -27.2, maxX: 27.2, minZ: -34.0, maxZ: 34.0 }
+        : level.id === 4
+          ? { minX: -20.0, maxX: 20.0, minZ: -34.0, maxZ: 45.0 }
+          : level.id === 5
+            ? { minX: -16.5, maxX: 16.5, minZ: -46.0, maxZ: 138.0 }
+            : null);
+      this.game.inventory.physics = physics;
+      this.game.inventory.levelMode = true;
+      const parkourCourse = PARKOUR_COURSES[level.id] || null;
+      this.parkourRespawnPoint = parkourCourse ? { ...parkourCourse.spawn } : null;
+      this.moveDogTo(parkourCourse ? parkourCourse.spawn : { x: 0, y: 0.0775, z: -7.5 }, physics);
+      this.game.resetRenderPositionSnapshots?.();
+      this.game.cameraRig.worldRoot = arena.group;
+      this.game.cameraRig.cacheCameraOccluders();
+      this.game.cameraRig.resetView(this.game.dog?.group?.position);
+      this.setPrompt('Level ' + level.id + ': ' + level.name + '. ' + level.mechanicIntro);
+    } catch (error) {
+      console.error('Failed to open level arena:', error);
+      if (physics) physics.dispose();
+      if (arena?.group) this.disposeArena(arena.group);
+      this.activeArena = null;
+      this.activePhysics = null;
+      this.activeLevel = null;
+      this.questObject = null;
+      this.animatedMechanic = null;
+      this.animatedMechanic2 = null;
+      this.special = null;
+      this.checkpointGroups = [];
+      this.checkpointIndex = 0;
+      this.parkourRespawnPoint = null;
+      this.finishTriggerLatched = false;
+      this.game.physics = this.basePhysics;
+      this.game.movement.physics = this.basePhysics;
+      this.game.movement.setWorldBounds?.(null);
+      this.game.inventory.physics = this.basePhysics;
+      this.game.inventory.levelMode = false;
+      for (const saved of this.hiddenPickupRoots) if (saved.root) saved.root.visible = saved.visible;
+      this.hiddenPickupRoots = [];
+      if (this.game.inventory?.ringIdleMesh) this.game.inventory.ringIdleMesh.visible = true;
+      if (this.game.inventory?.ringActiveMesh) this.game.inventory.ringActiveMesh.visible = true;
+      this.shelter.root.visible = true;
+      this.moveDogTo(HOME, this.basePhysics);
+      this.game.cameraRig.worldRoot = this.shelter.root;
+      this.game.cameraRig.cacheCameraOccluders();
+      this.game.cameraRig.resetView(this.game.dog?.group?.position);
+      this.game.resetRenderPositionSnapshots?.();
+      this.setPrompt('Arena level gagal dibuka. Coba dekati pintu lagi.');
+    } finally {
+      this.transitioning = false;
+    }
+  }
+
+
+  updateArena(dt) {
+    const position = this.game.dog?.group?.position;
+    const level = this.activeLevel;
+    if (!position || !level) return;
+
+    const course = PARKOUR_COURSES[level.id] || null;
+    const stepDt = Math.min(0.05, Math.max(0, Number(dt) || 0));
+    this.elapsed += stepDt;
+    this.syncBoardRiders(position);
+
+    if (this.questObject) {
+      const finish = course?.platforms.find((platform) => platform.finish);
+      this.questObject.rotation.y += stepDt * 0.9;
+      this.questObject.position.y = (finish ? finish.top + 0.48 : 0.52)
+        + Math.sin(this.elapsed * 2.8) * 0.06;
+      this.questObject.children[0]?.rotation.set(
+        this.elapsed * 0.3,
+        this.elapsed * 0.7,
+        this.elapsed * 0.2
+      );
+    }
+    if (this.animatedMechanic) {
+      this.animatedMechanic.rotation.y += stepDt
+        * (level.id === 1 ? 3.5 : level.id === 2 ? 2.8 : level.id === 5 ? 0.85 : 0.42);
+    }
+    if (this.animatedMechanic2) this.animatedMechanic2.rotation.y -= stepDt * 2.35;
+
+    // The shelter return portal is independent from the finish pressure plate.
+    const returnZ = level.id === 5 ? -44.0 : level.id === 4 ? -32.8 : level.id === 3 ? -32.4 : -9.5;
+    if (Math.hypot(position.x, position.z - returnZ) < (level.id === 3 || level.id === 4 || level.id === 5 ? 1.0 : 0.88)) {
+      this.returnHome(false);
+      return;
+    }
+
+    // Respawn only when K-09 is actually grounded below the parkour route.
+    if (course && this.game.movement?.grounded && position.y <= 0.18) {
+      const inFallZone = level.id === 5
+        ? position.z > -43.0 && position.z < 134.0
+        : level.id === 4
+          ? position.z > -31.5 && position.z < 45.2
+          : level.id === 3
+            ? position.z > -31.5 && position.z < 31.0
+            : position.z > -9.35 && position.z < 9.8;
+      if (inFallZone) {
+        const safe = course.platforms.some((platform) =>
+          Math.abs(position.x - platform.x) <= platform.width * 0.5 - 0.06
+          && Math.abs(position.z - platform.z) <= platform.depth * 0.5 - 0.06
+          && Math.abs(position.y - platform.top) <= 0.22
+        );
+        if (!safe) {
+          this.moveDogTo(this.parkourRespawnPoint || course.spawn, this.activePhysics);
+          this.game.resetRenderPositionSnapshots?.();
+          this.setPrompt('K-09 jatuh! Kembali ke checkpoint terakhir. Coba lagi.');
+          return;
+        }
+      }
+    }
+
+    // Update a special mechanic, but do not let it stop checkpoint or finish processing.
+    // Its return value only means that its own objective is still active.
+    const mechanicBusy = this.updateSpecialMechanic(level, position, stepDt);
+    const plate = this.activeArena?.userData?.finishPressurePlate;
+    let objectivesReady = false;
+
+    if (plate) {
+      const point = plate.userData.finishPoint || {
+        x: plate.position.x,
+        y: plate.position.y,
+        z: plate.position.z
+      };
+      const zone = plate.userData.zone || {};
+      const zoneX = Number.isFinite(zone.x) ? zone.x : point.x;
+      const zoneZ = Number.isFinite(zone.z) ? zone.z : point.z;
+      const finishPlatform = course?.platforms.find((platform) => platform.finish);
+      // Use the full finish deck plus K-09's footprint, not a narrow centre-only point.
+      // For puzzle arenas, include the visible plate and the chassis/paw reach.
+      const zoneRX = Math.max(
+        Number.isFinite(zone.rx) ? zone.rx : 1.05,
+        finishPlatform ? finishPlatform.width * 0.5 + 0.34 : 1.28
+      );
+      const zoneRZ = Math.max(
+        Number.isFinite(zone.rz) ? zone.rz : 0.95,
+        finishPlatform ? finishPlatform.depth * 0.5 + 0.34 : 1.08
+      );
+
+      const requireCheckpoints = level.finishRequirements?.checkpoints !== false;
+      const requireMechanic = level.finishRequirements?.mechanic === true;
+      const checkpointsReady = !requireCheckpoints
+        || this.checkpointIndex >= this.checkpointGroups.length;
+      const mechanicReady = !requireMechanic || this.special?.completed === true;
+      objectivesReady = checkpointsReady && mechanicReady;
+
+      const heightDelta = Math.abs(position.y - point.y);
+      const verticalVelocity = Number(
+        this.game.movement?.verticalVelocity
+        ?? this.game.dog?.verticalVelocity
+        ?? 0
+      );
+      const grounded = this.game.movement?.grounded === true
+        || this.game.dog?.grounded === true;
+      const footContacts = this.game.dog?.footContacts || [];
+      const footSupportedAtFinish = footContacts.some((contact) =>
+        contact?.hasSurface === true
+        && contact.blocked !== true
+        && Number.isFinite(contact.currentY)
+        && Math.abs(contact.currentY - point.y) <= 0.48
+      );
+      const stable = grounded || footSupportedAtFinish
+        || (heightDelta <= 0.24 && Math.abs(verticalVelocity) <= 0.55);
+      const inside = Math.abs(position.x - zoneX) <= zoneRX
+        && Math.abs(position.z - zoneZ) <= zoneRZ;
+      const surfaceTolerance = course ? 1.05 : 0.88;
+      const pressed = inside && stable && heightDelta <= surfaceTolerance;
+      const activating = pressed && objectivesReady;
+
+      plate.userData.pressed = pressed;
+      plate.userData.ready = objectivesReady;
+      plate.userData.inside = inside;
+      plate.userData.grounded = stable;
+      plate.userData.heightDelta = heightDelta;
+      plate.userData.blockReason = !checkpointsReady
+        ? 'checkpoint'
+        : !mechanicReady ? 'mechanic' : !inside ? 'position' : !stable ? 'grounded' : null;
+
+      if (inside && !objectivesReady) {
+        const lockMessage = !checkpointsReady
+          ? 'FINISH terkunci: aktifkan checkpoint ' + Math.min(this.checkpointIndex + 1, this.checkpointGroups.length)
+            + '/' + this.checkpointGroups.length + ' terlebih dahulu.'
+          : 'FINISH terkunci: selesaikan mekanik utama Level ' + level.id + ' terlebih dahulu.';
+        this.setPrompt(lockMessage);
+      } else if (inside && objectivesReady && !stable) {
+        this.setPrompt('Mendarat dan diam sejenak di PRESSURE PLATE untuk menyelesaikan Level ' + level.id + '.');
+      }
+
+      // Require a continuous press. Walking away or jumping off cancels the timer.
+      if (activating) {
+        if (!plate.userData.pendingActivation) {
+          plate.userData.pendingActivation = true;
+          plate.userData.pressElapsed = 0;
+        }
+        plate.userData.pressElapsed = Math.min(
+          0.25,
+          (plate.userData.pressElapsed || 0) + stepDt
+        );
+      } else {
+        plate.userData.pendingActivation = false;
+        plate.userData.pressElapsed = 0;
+      }
+
+      const visualPressed = activating && plate.userData.pendingActivation === true;
+      if (plate.userData.plate) {
+        const targetY = visualPressed
+          ? plate.userData.platePressedY
+          : plate.userData.plateRestY;
+        plate.userData.plate.position.y = THREE.MathUtils.damp(
+          plate.userData.plate.position.y,
+          targetY,
+          visualPressed ? 32 : 18,
+          stepDt
+        );
+      }
+
+      const visualState = (objectivesReady ? 'ready' : 'locked')
+        + (visualPressed ? '-pressed' : '-rest');
+      if (plate.userData.visualState !== visualState) {
+        plate.userData.visualState = visualState;
+        const mat = plate.userData.plateMaterial;
+        if (mat) {
+          mat.color.set(visualPressed ? '#fff4b5' : objectivesReady ? level.bright : '#7193a2');
+          mat.emissive.set(visualPressed ? '#e4b94e' : objectivesReady ? level.color : '#2b5366');
+          mat.emissiveIntensity = visualPressed ? 1.1 : objectivesReady ? 0.32 : 0.16;
+        }
+        for (const led of plate.userData.statusLeds || []) {
+          led.material.color.set(visualPressed ? '#fff8d4' : objectivesReady ? '#ffe99a' : '#7193a2');
+          led.material.emissive.set(visualPressed ? '#ffdf65' : objectivesReady ? '#b58d37' : '#2b5366');
+          led.material.emissiveIntensity = visualPressed ? 1.5 : objectivesReady ? 0.72 : 0.22;
+        }
+      }
+
+      if (plate.userData.pendingActivation
+        && plate.userData.pressElapsed >= 0.12
+        && !this.finishTriggerLatched) {
+        this.finishTriggerLatched = true;
+        if (this.completeLevel(level)) return;
+        this.finishTriggerLatched = false;
+        plate.userData.pendingActivation = false;
+        plate.userData.pressElapsed = 0;
+      }
+    }
+
+    // Checkpoints remain usable while a special objective is active. This prevents
+    // the mechanic update loop from starving the rest of the Level state machine.
+    if (this.checkpointIndex < this.checkpointGroups.length) {
+      const marker = this.checkpointGroups[this.checkpointIndex];
+      const target = marker?.userData?.point;
+      if (!target) return;
+
+      const checkpointDistance = Math.hypot(
+        position.x - target.x,
+        position.z - target.z
+      );
+      const checkpointHeightReady = ![4, 5].includes(level.id)
+        || !Number.isFinite(target.y)
+        || Math.abs(position.y - target.y) <= 0.62;
+      if (checkpointDistance >= 1.30 || !checkpointHeightReady) {
+        if (!mechanicBusy) {
+          this.setPrompt(
+            checkpointDistance < 1.30 && !checkpointHeightReady
+              ? 'Naik ke platform Ruin Beacon ' + (this.checkpointIndex + 1) + ' untuk mengaktifkannya.'
+              : 'Level ' + level.id + ': dekati '
+                + (level.checkpointLabel || 'checkpoint') + ' '
+                + (this.checkpointIndex + 1) + '/' + this.checkpointGroups.length + '.'
+          );
+        }
+        return;
+      }
+
+      // Checkpoints activate on grounded contact. Requiring an extra INTERACT press
+      // made the finish feel broken when players had physically crossed the beacon.
+      const checkpointGrounded = this.game.movement?.grounded === true
+        || this.game.dog?.grounded === true
+        || (this.game.dog?.footContacts || []).some((contact) =>
+          contact?.hasSurface === true && contact.blocked !== true
+        );
+      if (!checkpointGrounded) {
+        this.setPrompt('Mendarat di ' + (level.checkpointLabel || 'checkpoint') + ' untuk mengaktifkannya.');
+        return;
+      }
+
+      marker.visible = false;
+      this.checkpointIndex += 1;
+      if (course && Number.isFinite(target.y)) {
+        this.parkourRespawnPoint = {
+          x: target.x,
+          y: target.y + 0.025,
+          z: target.z,
+          yaw: Math.PI
+        };
+      }
+
+      const next = this.checkpointGroups[this.checkpointIndex];
+      if (next) next.visible = true;
+      else if (this.questObject && !course) this.questObject.visible = true;
+
+      this.setPrompt(this.checkpointIndex < this.checkpointGroups.length
+        ? 'Checkpoint ' + this.checkpointIndex + '/' + this.checkpointGroups.length
+          + ' aktif. Lanjut ke beacon berikutnya.'
+        : 'Semua checkpoint aktif! Injak PRESSURE PLATE di FINISH.');
+      return;
+    }
+
+    // Keep the mechanic's current instruction visible while it is still incomplete.
+    if (mechanicBusy && !objectivesReady) return;
+
+    this.setPrompt(objectivesReady
+      ? 'Semua objektif selesai. Injak PRESSURE PLATE di FINISH untuk mengakhiri Level ' + level.id + '.'
+      : 'Selesaikan mekanik utama level sebelum menuju FINISH.');
+  }
+  completeLevel(level) {
+    if (!level || this.transitioning || this.activeLevel?.id !== level.id) return false;
+    const granted = this.game.inventory?.grantQuestItem?.(level.token) ?? false;
+    const reward = level.reward || { pawTokens: 0, badge: 'Explorer' };
+    const firstReward = !this.rewarded.has(level.id);
+    let recoveredLegacyLevelTwoReward = false;
+
+    if (firstReward) {
+      this.pawTokens += reward.pawTokens || 0;
+      this.rewarded.add(level.id);
+      if (reward.badge) this.unlockedBadges.add(reward.badge);
+      if (reward.unlock) this.unlockedRewards.add(reward.unlock);
+    }
+    if (level.id === 2 && !this.parkourLevel2RewardRecoveryApplied) {
+      if (!firstReward) {
+        this.pawTokens += reward.pawTokens || 0;
+        if (reward.badge) this.unlockedBadges.add(reward.badge);
+        if (reward.unlock) this.unlockedRewards.add(reward.unlock);
+        recoveredLegacyLevelTwoReward = true;
+      }
+      this.parkourLevel2RewardRecoveryApplied = true;
+    }
+    let bonus = 0;
+    if (level.id === 1 && !this.parkourBonusV2Applied) {
+      if (!firstReward) { bonus = 25; this.pawTokens += bonus; }
+      this.parkourBonusV2Applied = true;
+    }
+    if (level.id === 2 && !this.parkourLevel2BonusApplied) {
+      if (!firstReward && !recoveredLegacyLevelTwoReward) { bonus = 75; this.pawTokens += bonus; }
+      this.parkourLevel2BonusApplied = true;
+    }
+
+    this.game.pawTokens = this.pawTokens;
+    this.game.levelBadges = [...this.unlockedBadges];
+    this.game.levelUnlocks = [...this.unlockedRewards];
+    this.updateRewardHUD();
+    this.completed.add(level.id);
+    this.saveProgress();
+    this.refreshGate();
+    this.refreshGiftRequirement();
+
+    const rewardText = recoveredLegacyLevelTwoReward
+      ? 'Pemulihan hadiah +' + (reward.pawTokens || 0) + ' Paw Tokens, lencana ' + reward.badge + ' dan unlock ' + (reward.unlock || 'Explorer') + '.'
+      : firstReward
+        ? 'Hadiah +' + (reward.pawTokens || 0) + ' Paw Tokens, lencana ' + reward.badge + ' dan unlock ' + (reward.unlock || 'Explorer') + '.'
+        : bonus > 0
+          ? 'Bonus selisih hadiah +' + bonus + ' Paw Tokens.'
+          : 'Lencana ' + reward.badge + ' sudah pernah diperoleh.';
+    this.lastRewardMessage = 'Misi Level ' + level.id + ' selesai! ' + rewardText
+      + (granted ? '' : ' Tas penuh, tetapi progres dan hadiah tetap dicatat.')
+      + ' Saldo: ' + this.pawTokens + ' Paw Tokens. K-09 kembali ke shelter.';
+    this.returnHome(true);
+    this.setPrompt(this.lastRewardMessage);
+    return true;
+  }
+
+  preparePhysics(dt) {
+    if (this.transitioning || ![3, 4, 5].includes(this.activeLevel?.id)) return;
+    const records = this.activePhysics?.dynamicProps || [];
+    const dogPosition = this.game.dog?.group?.position;
+    if (!dogPosition) return;
+    const step = Math.min(0.05, Math.max(0, Number(dt) || 0));
+    const motionTick = (this.platformMotionTick || 0) + 1;
+    this.platformMotionTick = motionTick;
+    const movement = this.game.movement;
+    let ridingPlatform = false;
+
+    const chooseSide = (state) => {
+      let side = Math.random() < 0.5 ? -1 : 1;
+      if (side === state.lastSide && Math.random() < 0.35) side = -side;
+      return side;
+    };
+
+    for (const record of records) {
+      if (!record.body) continue;
+      const motion = record.group?.userData?.boardMotion;
+      const spin = record.group?.userData?.spinMotion;
+
+      if (motion) {
+        const state = motion.choiceState;
+        if (state && state.lastUpdatedTick !== motionTick) {
+          state.lastUpdatedTick = motionTick;
+          const distanceToTrigger = Math.hypot(
+            dogPosition.x - state.trigger.x,
+            dogPosition.z - state.trigger.z
+          );
+
+          if (!state.started && distanceToTrigger <= state.radius) {
+            state.started = true;
+            state.activeSide = chooseSide(state);
+            state.remaining = state.duration;
+          } else if (state.started) {
+            state.remaining = Math.max(0, state.remaining - step);
+            if (state.remaining <= 0) {
+              if (state.activeSide !== null) {
+                state.lastSide = state.activeSide;
+                state.activeSide = null;
+                state.remaining = state.cooldown;
+              } else {
+                state.activeSide = chooseSide(state);
+                state.remaining = state.duration;
+              }
+            }
+          }
+        }
+
+        if (state) {
+          const enabled = state.activeSide === motion.choiceSide;
+          if (motion.choiceEnabled !== enabled) setTimedChoiceBoardEnabled(record, enabled);
+        }
+
+        const previousX = motion.currentRenderX ?? motion.baseX;
+        const previousZ = motion.currentRenderZ ?? motion.baseZ;
+        motion.previousRenderX = previousX;
+        motion.previousRenderZ = previousZ;
+        motion.elapsed = (motion.elapsed || 0) + step;
+        const offset = Math.sin(motion.elapsed * motion.speed + motion.phase) * motion.range;
+        motion.currentRenderX = motion.baseX + (motion.axis === 'x' ? offset : 0);
+        motion.currentRenderZ = motion.baseZ + (motion.axis === 'z' ? offset : 0);
+        const dx = motion.currentRenderX - previousX;
+        const dz = motion.currentRenderZ - previousZ;
+
+        const footSupported = (this.game.dog?.footContacts || []).some((contact) =>
+          contact?.hasSurface === true
+          && contact.blocked !== true
+          && Number.isFinite(contact.currentY)
+          && Math.abs(contact.currentY - motion.top) <= 0.28
+        );
+        const boardActive = !state || state.activeSide === motion.choiceSide;
+        const rider = boardActive
+          && (movement?.grounded === true || footSupported)
+          && Math.abs(dogPosition.y - motion.top) <= 0.30
+          && Math.abs(dogPosition.x - previousX) <= motion.width * 0.5 + 0.20
+          && Math.abs(dogPosition.z - previousZ) <= motion.spanZ * 0.5 + 0.20;
+
+        if (rider) {
+          ridingPlatform = true;
+          dogPosition.x += dx;
+          dogPosition.z += dz;
+          this.activePhysics.setPosition({
+            x: dogPosition.x,
+            y: dogPosition.y + 0.78,
+            z: dogPosition.z
+          });
+          if (movement?.platformCarryVelocity) {
+            movement.platformCarryVelocity.x = step > 1e-5 ? THREE.MathUtils.clamp(dx / step, -2.4, 2.4) : 0;
+            movement.platformCarryVelocity.z = step > 1e-5 ? THREE.MathUtils.clamp(dz / step, -2.4, 2.4) : 0;
+          }
+        }
+
+        record.body.setNextKinematicTranslation({
+          x: motion.currentRenderX,
+          y: record.prop.origin.y,
+          z: motion.currentRenderZ
+        });
+      }
+
+      if (spin) {
+        spin.previousAngle = spin.currentAngle;
+        spin.elapsed = (spin.elapsed || 0) + step;
+        spin.currentAngle = spin.phase + spin.elapsed * spin.speed;
+        const half = spin.currentAngle * 0.5;
+        record.body.setNextKinematicRotation({
+          x: 0,
+          y: Math.sin(half),
+          z: 0,
+          w: Math.cos(half)
+        });
+      }
+    }
+    if (!ridingPlatform && movement?.grounded && movement.platformCarryVelocity) {
+      movement.platformCarryVelocity.set(0, 0, 0);
+    }
+  }
+
+  syncBoardRiders() {
+    // Kinematic platforms carry grounded riders before the fixed physics step.
+  }
+
+  interpolateBoards(alpha) {
+    if (![3, 4, 5].includes(this.activeLevel?.id)) return;
+    for (const record of this.activePhysics?.dynamicProps || []) {
+      const motion = record.group?.userData?.boardMotion;
+      if (motion) {
+        record.group.position.x = THREE.MathUtils.lerp(motion.previousRenderX, motion.currentRenderX, alpha);
+        record.group.position.z = THREE.MathUtils.lerp(motion.previousRenderZ, motion.currentRenderZ, alpha);
+      }
+      const spin = record.group?.userData?.spinMotion;
+      if (spin) {
+        record.group.rotation.y = THREE.MathUtils.lerp(spin.previousAngle, spin.currentAngle, alpha);
+      }
+    }
+  }
+
+  updateSpecialMechanic(level, position, dt) {
+    const special = this.special;
+    if (!special) return false;
+    if (special.type === 'observatory') return updateObservatoryLevel5(this, level, position, dt);
+    if (special.completed) return false;
+    const near = (point, radius = 1.25) => Math.hypot(position.x - point.x, position.z - point.z) <= radius;
+    const interact = () => {
+      const value = Boolean(this.game.input?.consumeInteract?.());
+      if (value) this.game.input?.consumeLongInteract?.();
+      return value;
+    };
+
+    if (special.type === 'crates') {
+      const p = special.crate.position;
+      const distance = Math.hypot(p.x - special.crateTarget.x, p.z - special.crateTarget.z);
+      if (distance <= 0.92) {
+        special.completed = true;
+        special.targetRing.visible = false;
+        const record = this.activePhysics?.dynamicPropsById?.get('level3-crate');
+        if (record) {
+          record.body.setTranslation({ x:p.x, y:special.crateBaseY, z:p.z }, true);
+          record.body.setRotation({ x:0, y:0, z:0, w:1 }, true);
+          record.body.setLinvel({ x:0, y:0, z:0 }, true);
+          record.body.setAngvel({ x:0, y:0, z:0 }, true);
+          record.body.setGravityScale(0, true);
+          try { record.body.setBodyType(this.activePhysics.api.RigidBodyType.Fixed, true); } catch {}
+        }
+        special.crate.position.y = special.crateBaseY;
+        special.crate.rotation.set(0,0,0);
+        this.setPrompt('Balok terkunci pada target! Lanjutkan ke Timber Beacon dan FINISH.');
+        return false;
+      }
+      this.setPrompt('Dorong balok kayu ke lingkaran emas. Jarak: ' + distance.toFixed(1) + ' m.');
+      return true;
+    }
+
+    if (special.type === 'catapult') {
+      if (!special.fired) {
+        if (!near(special.catapultPosition, 1.45)) {
+          this.setPrompt('Dek awal: dekati katapel di tengah, hancurkan gerbang untuk membuka jembatan violet.');
+          return true;
+        }
+        this.setPrompt('Katapel siap. Tekan INTERAKSI untuk melontarkan bola ke gerbang.');
+        if (!interact()) return true;
+        special.fired = true;
+        special.fireElapsed = 0;
+        special.catapultArm.rotation.x = -0.72;
+        const record = this.activePhysics?.dynamicPropsById?.get(special.projectileId);
+        if (record) {
+          record.body.setTranslation(special.projectileStart, true);
+          record.body.setLinvel({ x:0, y:0, z:0 }, true);
+          record.body.setAngvel({ x:0, y:0, z:0 }, true);
+          record.body.applyImpulse({ x:0, y:2.3, z:15.5 }, true);
+        }
+        return true;
+      }
+      special.fireElapsed += Math.min(0.05, Math.max(0, dt));
+      const p = special.projectile.position;
+      const b = special.barrier.position;
+      const hit = Math.abs(p.x-b.x)<1.12 && p.z>=b.z-0.72 && p.y>0.08 && p.y<2.65;
+      if (hit || (p.z>b.z+0.15 && Math.abs(p.x-b.x)<1.25)) {
+        const record = this.activePhysics?.dynamicPropsById?.get(special.barrierId);
+        setRigidBodyCollidersEnabled(record?.body, false);
+        special.barrier.visible = false;
+        special.bridge.visible = true;
+        if (!special.bridgeCollider && this.activePhysics?.world && this.activePhysics?.api) {
+          special.bridgeCollider = this.activePhysics.world.createCollider(
+            this.activePhysics.api.ColliderDesc.cuboid(1.08,0.10,0.78).setTranslation(special.bridgePosition.x,special.bridgePosition.y,special.bridgePosition.z).setFriction(0.82),
+            this.activePhysics.fixedBody
+          );
+        }
+        special.completed = true;
+        this.setPrompt('Gerbang hancur! Jembatan violet terbuka. Aktifkan Ruin Beacon lalu injak FINISH.');
+        return false;
+      }
+      if (special.fireElapsed > 3.0) {
+        const record = this.activePhysics?.dynamicPropsById?.get(special.projectileId);
+        if (record) {
+          record.body.setTranslation(special.projectileStart, true);
+          record.body.setRotation({ x:0, y:0, z:0, w:1 }, true);
+          record.body.setLinvel({ x:0, y:0, z:0 }, true);
+          record.body.setAngvel({ x:0, y:0, z:0 }, true);
+        }
+        special.fired = false;
+        special.catapultArm.rotation.x = 0;
+        this.setPrompt('Bola meleset. Katapel diatur ulang, coba lagi.');
+      }
+      return true;
+    }
+
+    if (special.type === 'braidel-ball') {
+      const ball = special.ball.position;
+      const target = special.opponent.position;
+      const record = this.activePhysics?.dynamicPropsById?.get(special.ballId);
+      if (special.ballInFlight) {
+        special.flightElapsed += Math.min(0.05, Math.max(0, dt));
+        const arrived = ball.z >= target.z-1 && Math.abs(ball.x-target.x)<=1.55;
+        if (!arrived && special.flightElapsed <= 2.8) {
+          this.setPrompt('Bola menuju Braidel. Reli ' + (special.rallies+1) + '/3.');
+          return true;
+        }
+        special.returnWasSuccess = arrived || ball.z > target.z-1.8;
+        special.ballInFlight = false;
+        special.returning = true;
+        special.returnElapsed = 0;
+        special.returnStart = { x:ball.x, y:ball.y, z:ball.z };
+        record?.body?.setLinvel({ x:0,y:0,z:0 }, true);
+        record?.body?.setAngvel({ x:0,y:0,z:0 }, true);
+      }
+      if (special.returning) {
+        special.returnElapsed += Math.min(0.05, Math.max(0, dt));
+        const t = THREE.MathUtils.clamp(special.returnElapsed/0.72,0,1);
+        const eased=t*t*(3-2*t);
+        const start=special.returnStart, origin=special.ballStart;
+        const next={x:THREE.MathUtils.lerp(start.x,origin.x,eased),y:THREE.MathUtils.lerp(start.y,origin.y,eased)+Math.sin(t*Math.PI)*0.62,z:THREE.MathUtils.lerp(start.z,origin.z,eased)};
+        special.ball.position.set(next.x,next.y,next.z);
+        if(record){record.body.setTranslation(next,true);record.body.setLinvel({x:0,y:0,z:0},true);record.body.setAngvel({x:0,y:0,z:0},true);}
+        if(t>=1){
+          special.returning=false;
+          special.ball.position.set(origin.x,origin.y,origin.z);
+          if(record){record.body.setTranslation(origin,true);record.body.setLinvel({x:0,y:0,z:0},true);record.body.setAngvel({x:0,y:0,z:0},true);}
+          if(special.returnWasSuccess)special.rallies+=1;
+          if(special.rallies>=3){special.completed=true;this.setPrompt('RELI MENANG! Aktifkan Rally Beacon lalu injak FINISH.');return false;}
+        }
+        return true;
+      }
+      if(near(ball,1.35)){
+        this.setPrompt('Bola siap. Tekan INTERAKSI untuk memukul ke arah Braidel. Reli '+special.rallies+'/3.');
+        if(interact()&&record){
+          record.body.setLinvel({x:0,y:0,z:0},true);record.body.setAngvel({x:0,y:0,z:0},true);
+          const dx=target.x-ball.x,dz=target.z-ball.z;
+          record.body.applyImpulse({x:THREE.MathUtils.clamp(dx,-1.5,1.5)*0.9,y:0.55,z:Math.max(2.6,dz*0.82)},true);
+          special.ballInFlight=true;special.flightElapsed=0;
+        }
+      }else this.setPrompt('Misi Braidel: dekati bola di tengah lapangan.');
+      return true;
+    }
+    return false;
+  }
+
+  moveDogTo(rootPosition, physics) {
+    const dog = this.game.dog;
+    if (!dog?.group || !rootPosition) return;
+    dog.group.position.set(rootPosition.x, rootPosition.y, rootPosition.z);
+    if (Number.isFinite(rootPosition.yaw)) {
+      dog.group.rotation.y = rootPosition.yaw;
+      const half = rootPosition.yaw * 0.5;
+      const rotation = { x:0, y:Math.sin(half), z:0, w:Math.cos(half) };
+      physics?.body?.setRotation?.(rotation, true);
+      physics?.body?.setNextKinematicRotation?.(rotation);
+    }
+    physics?.setPosition?.({ x:rootPosition.x, y:rootPosition.y+0.78, z:rootPosition.z });
+    const movement = this.game.movement;
+    movement?.horizontalVelocity?.set(0,0,0);
+    if (movement) {
+      movement.verticalVelocity=0;
+      movement.grounded=true;
+      movement.runJumpActive=false;
+      movement.sprintJumpGraceTimer=0;
+    }
+    if (dog.worldVelocity) Object.assign(dog.worldVelocity,{x:0,y:0,z:0});
+  }
+
+  returnHome(collectedItem) {
+    if (!this.activeLevel || this.transitioning) return;
+    this.transitioning=true;
+    const physics=this.activePhysics, arena=this.activeArena;
+    this.activeLevel=null; this.activePhysics=null; this.activeArena=null;
+    this.questObject=null; this.animatedMechanic=null; this.animatedMechanic2=null; this.special=null;
+    this.checkpointGroups=[]; this.checkpointIndex=0; this.parkourRespawnPoint=null; this.finishTriggerLatched=false;
+    if(physics&&physics!==this.basePhysics)physics.dispose();
+    this.game.physics=this.basePhysics;
+    this.game.movement.physics=this.basePhysics;
+    this.game.movement.setWorldBounds?.(null);
+    this.game.inventory.physics=this.basePhysics;
+    this.game.inventory.levelMode=false;
+    this.shelter.root.visible=true;
+    for(const saved of this.hiddenPickupRoots)if(saved.root)saved.root.visible=saved.visible;
+    this.hiddenPickupRoots=[];
+    if(this.game.inventory?.ringIdleMesh)this.game.inventory.ringIdleMesh.visible=true;
+    if(this.game.inventory?.ringActiveMesh)this.game.inventory.ringActiveMesh.visible=true;
+    if(arena)this.disposeArena(arena);
+    this.moveDogTo(HOME,this.basePhysics);
+    this.game.resetRenderPositionSnapshots?.();
+    this.game.cameraRig.worldRoot=this.shelter.root;
+    this.game.cameraRig.cacheCameraOccluders();
+    this.game.cameraRig.resetView(this.game.dog?.group?.position);
+    this.refreshGiftRequirement();
+    this.game.inventory?.updateInteractionUI?.(true);
+    this.setPrompt(collectedItem?'Kembali ke kado dan injak tombol setelah kelima benda level terkumpul.':'Kembali ke shelter.');
+    this.transitioning=false;
+  }
+
+  setPrompt(message) {
+    if(this.currentPrompt===message)return;
+    this.currentPrompt=message;
+    const prompt=this.game.inventory?.prompt;
+    const text=this.game.inventory?.promptText;
+    if(!prompt||!text)return;
+    text.textContent=message;
+    prompt.hidden=false;
+    prompt.classList.add('is-active');
+  }
+
+  buildArena(level) {
+    const group=new THREE.Group(); group.name='VisitedLevelArena-'+level.id;
+    const solids=[]; const materialCache=new Map();
+    const material=(color,metalness=0.02)=>{
+      const key=color+':'+metalness;
+      if(!materialCache.has(key))materialCache.set(key,new THREE.MeshStandardMaterial({color,roughness:0.76,metalness,flatShading:true}));
+      return materialCache.get(key);
+    };
+    const box=(name,x,y,z,sx,sy,sz,color,collidable=true,metalness=0.02,parent=group)=>{
+      const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),material(color,metalness));
+      mesh.name=name;mesh.position.set(x,y,z);mesh.castShadow=false;mesh.receiveShadow=true;parent.add(mesh);
+      if(collidable)solids.push({x,y,z,sx:sx*0.5,sy:sy*0.5,sz:sz*0.5});
+      return mesh;
+    };
+    const parkourCourse=PARKOUR_COURSES[level.id]||null;
+    const wide=level.id===3||level.id===4||level.id===5;
+    const halfWidth=level.id===5?18.0:wide?28:9.75, floorWidth=level.id===5?36.0:wide?55.6:19.4;
+    const floorDepth=level.id===5?190:level.id===4?90:wide?70:21.4;
+    const arenaCenterZ=level.id===5?44.5:0;
+    const returnZ=level.id===5?-46.0:wide?-33:-9.95, frontZ=level.id===5?137.0:level.id===4?46.2:wide?34.45:10.55;
+    const tileDepth=level.id===5?188:level.id===4?88.2:wide?66.2:20.3;
+    box('ArenaFloor-'+level.id,0,0.06,arenaCenterZ,floorWidth,0.035,floorDepth,level.color,false);
+    if(!parkourCourse||wide)solids.push({x:0,y:-0.02,z:arenaCenterZ,sx:floorWidth*0.5,sy:0.02,sz:floorDepth*0.5});
+    for(let x=wide?-27:-9;x<=(wide?27:9);x+=3)box('ArenaTile-'+x,x,0.081,arenaCenterZ,0.035,0.008,tileDepth,x%2?level.bright:'#fff0df',false);
+    box('ArenaWallLeft',-halfWidth,1.42,arenaCenterZ,0.25,2.85,floorDepth,'#514c60');
+    box('ArenaWallRight',halfWidth,1.42,arenaCenterZ,0.25,2.85,floorDepth,'#514c60');
+    box('ArenaWallFront',0,1.42,frontZ,floorWidth+0.1,2.85,0.25,'#514c60');
+    const portalHalf=wide?3.25:2.45, wallWidth=halfWidth-portalHalf, wallX=(halfWidth+portalHalf)*0.5;
+    box('ArenaBackWallLeft',-wallX,1.42,returnZ,wallWidth,2.85,0.25,'#514c60');
+    box('ArenaBackWallRight',wallX,1.42,returnZ,wallWidth,2.85,0.25,'#514c60');
+    box('ReturnPostL',-1.05,1.05,returnZ,0.16,2.05,0.16,level.bright,false,0.18);
+    box('ReturnPostR',1.05,1.05,returnZ,0.16,2.05,0.16,level.bright,false,0.18);
+    box('ReturnLintel',0,2.08,returnZ,2.25,0.16,0.16,level.bright,false,0.18);
+    const finish=parkourCourse?.platforms.find(p=>p.finish);
+    const goalZ=finish?finish.z-0.18:wide?27.35:8.55, goalY=finish?finish.top-0.0775:0;
+    box('GoalPostL',level.itemX-0.8,goalY+0.82,goalZ,0.14,1.55,0.14,level.bright,false,0.16);
+    box('GoalPostR',level.itemX+0.8,goalY+0.82,goalZ,0.14,1.55,0.14,level.bright,false,0.16);
+    box('GoalTop',level.itemX,goalY+1.62,goalZ,1.75,0.14,0.14,level.bright,false,0.16);
+
+    if(parkourCourse){
+      if(level.id===1)box('MossBog',0.25,0.088,2,10.8,0.012,14.8,'#315d5a',false,0.04);
+      if(level.id===2)box('SkyMist',0.25,0.105,2,10.8,0.018,14.8,'#356e88',false,0.02);
+      const choiceStates = new Map();
+      for(const platform of parkourCourse.platforms){
+        const thickness=platform.finish?0.16:0.18, bottom=platform.top-thickness;
+
+        if(platform.movingAxis || platform.choiceGroup){
+          const board=new THREE.Group();
+          const motionAxis=platform.movingAxis||null;
+          const motionRange=Number.isFinite(platform.moveRange)?platform.moveRange:0;
+          const motionSpeed=Number.isFinite(platform.moveSpeed)?platform.moveSpeed:0;
+          const motionPhase=Number.isFinite(platform.movePhase)?platform.movePhase:0;
+          const initialOffset=Math.sin(motionPhase)*motionRange;
+          const initialX=platform.x+(motionAxis==='x'?initialOffset:0);
+          const initialZ=platform.z+(motionAxis==='z'?initialOffset:0);
+          const origin={x:initialX,y:bottom+thickness*0.5,z:initialZ};
+          board.name='Level'+level.id+'-MovingBoard-'+platform.name;
+          board.position.set(origin.x,origin.y,origin.z);
+          group.add(board);
+
+          let choiceState=null;
+          if(platform.choiceGroup){
+            choiceState=choiceStates.get(platform.choiceGroup);
+            if(!choiceState){
+              const trigger=platform.choiceTrigger||{x:platform.x,z:platform.z};
+              choiceState={
+                id:platform.choiceGroup,
+                trigger:{x:trigger.x,z:trigger.z},
+                radius:platform.choiceRadius||6.0,
+                duration:platform.choiceDuration||4.0,
+                cooldown:platform.choiceCooldown||0.8,
+                started:false,
+                activeSide:null,
+                remaining:0,
+                lastSide:0
+              };
+              choiceStates.set(platform.choiceGroup,choiceState);
+            }
+          }
+
+          let deckMesh;
+          if(choiceState){
+            const choiceMaterial=new THREE.MeshStandardMaterial({
+              color:'#756a91',emissive:'#302543',emissiveIntensity:0.12,
+              transparent:true,opacity:0.20,depthWrite:false,roughness:0.54,
+              metalness:0.16,flatShading:true
+            });
+            deckMesh=new THREE.Mesh(new THREE.BoxGeometry(platform.width,thickness,platform.depth),choiceMaterial);
+            deckMesh.name='TimedChoiceDeck-'+platform.name;
+            deckMesh.castShadow=false;
+            deckMesh.receiveShadow=true;
+            deckMesh.visible=false;
+            board.add(deckMesh);
+          }else{
+            deckMesh=box('MovingDeck',0,0,0,platform.width,thickness,platform.depth,platform.color,false,0.04,board);
+          }
+
+          const motion={
+            axis:motionAxis,
+            baseX:platform.x,baseZ:platform.z,
+            range:motionRange,
+            speed:motionSpeed,
+            phase:motionPhase,
+            top:platform.top,width:platform.width,spanZ:platform.depth,
+            elapsed:0,
+            previousRenderX:initialX,previousRenderZ:initialZ,
+            currentRenderX:initialX,currentRenderZ:initialZ,
+            choiceState,
+            choiceSide:platform.choiceSide||0,
+            choiceMesh:choiceState?deckMesh:null,
+            choiceEnabled:choiceState?false:null
+          };
+          board.userData.boardMotion=motion;
+          const prop={
+            id:'level'+level.id+'-moving-platform-'+platform.name,
+            group:board,origin,spawnLift:0,mass:80,gravityScale:0,
+            linearDamping:0,angularDamping:0,friction:0.9,
+            restitution:0,ccdEnabled:false,canSleep:false
+          };
+          solids.push({
+            x:origin.x,y:origin.y,z:origin.z,
+            sx:platform.width*0.5,sy:thickness*0.5,sz:platform.depth*0.5,
+            dynamicProp:prop
+          });
+          continue;
+        }
+
+        box('Parkour-'+platform.name,platform.x,bottom+thickness*0.5,platform.z,
+          platform.width,thickness,platform.depth,platform.color,true,0.04);
+        if(!platform.start&&bottom>0.14){
+          const h=bottom-0.09;
+          const rw=Math.min(platform.beam?0.24:0.54,platform.width*0.46);
+          const rd=Math.min(0.56,platform.depth*0.42);
+          box('Root-'+platform.name,platform.x,0.09+h*0.5,platform.z,rw,h,rd,
+            level.id===1?'#385f56':level.id===4?'#51456e':'#315b75',false,0.01);
+        }
+        const edgeW=Math.max(0.18,platform.width-0.12);
+        const edgeD=Math.max(0.18,platform.depth-0.12);
+        const ty=platform.top+0.006;
+        box('EdgeFront-'+platform.name,platform.x,ty,platform.z-platform.depth*0.5+0.045,edgeW,0.025,0.045,platform.edge,false,0.08);
+        box('EdgeBack-'+platform.name,platform.x,ty,platform.z+platform.depth*0.5-0.045,edgeW,0.025,0.045,platform.edge,false,0.08);
+        box('EdgeLeft-'+platform.name,platform.x-platform.width*0.5+0.045,ty,platform.z,0.045,0.025,edgeD,platform.edge,false,0.08);
+        box('EdgeRight-'+platform.name,platform.x+platform.width*0.5-0.045,ty,platform.z,0.045,0.025,edgeD,platform.edge,false,0.08);
+
+        if(platform.spinBar){
+          const length=Number.isFinite(platform.spinLength)?platform.spinLength:3.0;
+          const spinHeight=Number.isFinite(platform.spinHeight)?platform.spinHeight:0.82;
+          const origin={x:platform.x,y:platform.top+spinHeight,z:platform.z};
+          const spinner=new THREE.Group();
+          spinner.name='Level4-HoloRotor-'+platform.name;
+          spinner.position.set(origin.x,origin.y,origin.z);
+          const core=box('HoloRodCore',0,0,0,length,0.13,0.15,'#79eaff',false,0.32,spinner);
+          core.material.emissive.set('#259ac0');
+          core.material.emissiveIntensity=0.9;
+          for(const side of [-1,1]){
+            const cap=box('HoloRodCap-'+side,side*length*0.47,0,0,0.18,0.20,0.22,'#f2ddff',false,0.26,spinner);
+            cap.material.emissive.set('#a77aff');
+            cap.material.emissiveIntensity=0.8;
+          }
+          const hub=box('HoloRodHub',0,0,0,0.30,0.24,0.30,'#d9c2ff',false,0.3,spinner);
+          hub.material.emissive.set('#9a75e2');
+          hub.material.emissiveIntensity=0.7;
+          const phase=Number.isFinite(platform.spinPhase)?platform.spinPhase:0;
+          spinner.rotation.y=phase;
+          const spinMotion={
+            speed:Number.isFinite(platform.spinSpeed)?platform.spinSpeed:1.4,
+            phase,elapsed:0,previousAngle:phase,currentAngle:phase
+          };
+          spinner.userData.spinMotion=spinMotion;
+          group.add(spinner);
+          const prop={
+            id:'level4-holo-rotor-'+platform.name,
+            group:spinner,origin,spawnLift:0,mass:8,gravityScale:0,
+            linearDamping:0,angularDamping:0,friction:0.62,
+            restitution:0,ccdEnabled:false,canSleep:false
+          };
+          solids.push({
+            x:origin.x,y:origin.y,z:origin.z,
+            sx:length*0.5,sy:0.075,sz:0.085,
+            dynamicProp:prop
+          });
+        }
+      }
+    }else{
+      level.obstacles?.forEach((obstacle,index)=>{
+        const [x,z,w,h,d,color]=obstacle;
+        box('Obstacle-'+index,x,0.0775+h*0.5,z,w,h,d,color,true,level.id===5?0.22:0.04);
+      });
+      for(let i=0;i<5;i++){
+        const x=Math.sin((i+1)*(level.id+1)*0.58)*5.2,z=-5.8+i*2.65;
+        box('PathPad-'+i,x,0.16,z,1.05,0.16,0.88,i%2?level.bright:'#fff0df',false);
+      }
+    }
+
+    // Low-poly signatures: sky wind gates, time ring, bridge path and clockwork gear.
+    let animatedMechanic = null;
+    let animatedMechanic2 = null;
+    let special = null;
+    const addArenaGear = (name, x, y, z, radius, color) => {
+      const gear = new THREE.Group();
+      gear.name = name;
+      gear.position.set(x, y, z);
+      const ringMesh = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.075, 5, 20), material(color, 0.48));
+      ringMesh.rotation.x = Math.PI / 2;
+      ringMesh.castShadow = false;
+      gear.add(ringMesh);
+      for (let tooth = 0; tooth < 8; tooth++) {
+        const angle = tooth * Math.PI / 4;
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.11, 0.27), material(color, 0.38));
+        mesh.position.set(Math.cos(angle) * (radius + 0.06), 0, Math.sin(angle) * (radius + 0.06));
+        mesh.rotation.y = -angle;
+        mesh.castShadow = false;
+        gear.add(mesh);
+      }
+      group.add(gear);
+      return gear;
+    };
+    if (level.id === 2) {
+      // Decorative wind gates frame the route from the distant sides without blocking the jump path.
+      for (const [index, z] of [-4.2, 1.2, 6.5].entries()) {
+        box('Level2-WindGateLeft-' + index, -6.7, 1.20, z, 0.14, 2.35, 0.14, '#b7eff2', false, 0.18);
+        box('Level2-WindGateRight-' + index, 6.7, 1.20, z, 0.14, 2.35, 0.14, '#73bfd0', false, 0.18);
+        box('Level2-WindGateTopL-' + index, -6.7, 2.34, z, 1.65, 0.12, 0.14, '#d4f6f7', false, 0.18);
+        box('Level2-WindGateTopR-' + index, 6.7, 2.34, z, 1.65, 0.12, 0.14, '#d4f6f7', false, 0.18);
+      }
+    } else if (level.id === 3) {
+      const timeRing = new THREE.Group();
+      timeRing.name = 'Level3-TimeMachineRing';
+      timeRing.position.set(3.4, 1.35, -24.6);
+      const outer = new THREE.Mesh(new THREE.TorusGeometry(0.83, 0.10, 6, 24), material('#ffbd72', 0.3));
+      outer.castShadow = false;
+      const inner = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.045, 5, 20), material('#c76d4a', 0.36));
+      inner.castShadow = false;
+      timeRing.add(outer, inner);
+      group.add(timeRing);
+      animatedMechanic = timeRing;
+    } else if (level.id === 4) {
+      // Twin decorative pylons frame the direct parkour start deck.
+      box('Level4-StartPylonL', -3.45, 0.84, -25.8, 0.24, 0.82, 0.24, '#b8a0df', false, 0.12);
+      box('Level4-StartPylonR', 3.45, 0.84, -25.8, 0.24, 0.82, 0.24, '#9677bd', false, 0.12);
+    }
+
+    const makeSphere = (parent, name, color, position, scale, metalness = 0.02) => {
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), material(color, metalness));
+      mesh.name = name;
+      mesh.position.set(position[0], position[1], position[2]);
+      mesh.scale.set(scale[0], scale[1], scale[2]);
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      parent.add(mesh);
+      return mesh;
+    };
+    const makeRing = (name, x, z, color, radius = 0.72) => {
+      const mesh = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.035, 5, 18), material(color, 0.12));
+      mesh.name = name;
+      mesh.rotation.x = Math.PI / 2;
+      mesh.position.set(x, 0.125, z);
+      group.add(mesh);
+      return mesh;
+    };
+
+    if (level.id === 1) {
+      // Rotating low-poly saw hazard inspired by the molesaw/impulse source nodes in level01.
+      const sawPlatform = LEVEL_ONE_PARKOUR.platforms.find((platform) => platform.saw);
+      animatedMechanic = addArenaGear('Level1-MossSaw', sawPlatform.x, sawPlatform.top + 0.13,
+        sawPlatform.z, 0.34, '#d4c18a');
+      solids.push({ x: sawPlatform.x, y: sawPlatform.top + 0.07, z: sawPlatform.z,
+        sx: 0.34, sy: 0.07, sz: 0.34, shape: 'cylinder', radius: 0.34, halfHeight: 0.07 });
+    } else if (level.id === 2) {
+      // Two counter-rotating wind hazards guard narrow islands. Their simple colliders stay cheap on mobile.
+      const rotorPlatforms = LEVEL_TWO_PARKOUR.platforms.filter((platform) => platform.rotor);
+      const rotorA = rotorPlatforms[0];
+      const rotorB = rotorPlatforms[1];
+      animatedMechanic = addArenaGear('Level2-SkyRotorA', rotorA.x, rotorA.top + 0.13,
+        rotorA.z, 0.38, '#ffe6a9');
+      animatedMechanic2 = addArenaGear('Level2-SkyRotorB', rotorB.x, rotorB.top + 0.13,
+        rotorB.z, 0.34, '#fff0cf');
+      for (const rotor of rotorPlatforms) {
+        const radius = rotor === rotorA ? 0.38 : 0.34;
+        solids.push({ x: rotor.x, y: rotor.top + 0.07, z: rotor.z,
+          sx: radius, sy: 0.07, sz: radius, shape: 'cylinder', radius, halfHeight: 0.07 });
+      }
+      for (let i = 0; i < 6; i++) {
+        const cloudX = -6.0 + i * 2.15;
+        const cloudZ = -4.8 + (i % 3) * 4.8;
+        makeSphere(group, 'Level2-CloudPuff-' + i, '#b7eff2', [cloudX, 0.45, cloudZ], [1.02, 0.16, 0.66]);
+      }
+      special = null;
+    } else if (level.id === 3) {
+      // A real Rapier-driven crate rather than a fake position-only puzzle prop.
+      const crate = new THREE.Group();
+      crate.name = 'Level3-PushableCrate';
+      box('CrateCore', 0, 0, 0, 0.98, 0.98, 0.98, '#a96842', false, 0.02, crate);
+      for (const y of [-0.34, 0, 0.34]) {
+        box('CrateFrontRail-' + y, 0, y, -0.503, 0.98, 0.09, 0.055, '#d79b64', false, 0.01, crate);
+        box('CrateSideRail-' + y, 0.503, y, 0, 0.055, 0.09, 0.98, '#d79b64', false, 0.01, crate);
+      }
+      const braceA = box('CrateBraceA', 0, 0, -0.54, 0.10, 0.88, 0.035, '#e3b47d', false, 0.01, crate);
+      braceA.rotation.z = 0.55;
+      const braceB = box('CrateBraceB', 0, 0, -0.545, 0.10, 0.88, 0.035, '#e3b47d', false, 0.01, crate);
+      braceB.rotation.z = -0.55;
+      const crateBaseY = LEVEL_THREE_PARKOUR.platforms.find((platform) => platform.start).top + 0.49;
+      crate.position.set(2.45, crateBaseY, -26.2);
+      group.add(crate);
+      const crateProp = {
+        id: 'level3-crate', group: crate, origin: { x: 2.45, y: crateBaseY, z: -26.2 },
+        spawnLift: 0, mass: 12, gravityScale: 1, linearDamping: 0.72, angularDamping: 2.6,
+        friction: 0.9, restitution: 0.025, ccdEnabled: true, canSleep: false
+      };
+      solids.push({ x: 2.45, y: crateBaseY, z: -26.2, sx: 0.5, sy: 0.5, sz: 0.5, dynamicProp: crateProp });
+      const targetRing = makeRing('Level3-CrateTarget', -2.4, -24.0, '#ffcf75', 0.82);
+      targetRing.position.y = LEVEL_THREE_PARKOUR.platforms.find((platform) => platform.start).top + 0.025;
+      special = { type: 'crates', completed: false, crate, crateBaseY, crateTarget: { x: -2.4, z: -24.0 }, targetRing };
+    } else if (level.id === 4) {
+      // Level 4 starts directly as a parkour course; no launcher or gate objective.
+      special = null;
+    } else if (level.id === 5) {
+      special = buildObservatoryLevel5({ group, box, solids });
+    }
+
+    const checkpointGroups = [];
+    const checkpointPoints = PUZZLE_SEQUENCES[level.id] || [];
+    for (let i = 0; i < checkpointPoints.length; i++) {
+      const [x, z] = checkpointPoints[i];
+      const marker = new THREE.Group();
+      marker.name = 'Level' + level.id + '-Step-' + (i + 1);
+      marker.visible = i === 0;
+      const surfaceY = checkpointPoints[i][2];
+      marker.userData.point = { x, z, ...(Number.isFinite(surfaceY) ? { y: surfaceY } : {}) };
+      if (PARKOUR_COURSES[level.id] && Number.isFinite(surfaceY)) marker.position.y = surfaceY - 0.0775;
+      group.add(marker);
+      box('StepPad-' + level.id + '-' + i, x, 0.108, z, 1.08, 0.035, 1.08, level.color, false, 0.08, marker);
+      box('StepPost-' + level.id + '-' + i, x, 0.42, z, 0.22, 0.60, 0.22, level.bright, false, 0.16, marker);
+      box('StepCap-' + level.id + '-' + i, x, 0.76, z, 0.42, 0.10, 0.42, '#fff0df', false, 0.08, marker);
+      if (PARKOUR_COURSES[level.id]) {
+        const orbColor = level.id === 1 ? '#fff0df' : '#e0fcff';
+        const beaconOrb = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), material(orbColor, 0.18));
+        beaconOrb.name = 'Level' + level.id + '-BeaconOrb-' + (i + 1);
+        beaconOrb.position.set(0, 0.93, 0);
+        marker.add(beaconOrb);
+        const beaconHalo = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.025, 5, 16), material(level.bright, 0.18));
+        beaconHalo.name = 'Level' + level.id + '-BeaconHalo-' + (i + 1);
+        beaconHalo.rotation.x = Math.PI / 2;
+        beaconHalo.position.set(0, 0.93, 0);
+        marker.add(beaconHalo);
+      }
+      checkpointGroups.push(marker);
+    }
+
+    const itemGeometry = new THREE.OctahedronGeometry(0.34, 0);
+    const itemMaterial = new THREE.MeshStandardMaterial({
+      color: level.bright, emissive: level.color, emissiveIntensity: 0.6,
+      roughness: 0.3, metalness: 0.2, flatShading: true
+    });
+    const questObject = new THREE.Group();
+    questObject.name = 'LevelQuestCollectible-' + level.id;
+    const questFinish = PARKOUR_COURSES[level.id]?.platforms.find((platform) => platform.finish);
+    questObject.position.set(questFinish?.x ?? level.itemX,
+      questFinish ? questFinish.top + 0.48 : 0.52,
+      questFinish?.z ?? 8.1);
+    const relic = new THREE.Mesh(itemGeometry, itemMaterial);
+    relic.name = 'LevelQuestRelic-' + level.id;
+    relic.castShadow = false;
+    relic.receiveShadow = false;
+    questObject.add(relic);
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.48, 0.025, 6, 24),
+      new THREE.MeshStandardMaterial({ color: level.bright, emissive: level.color, emissiveIntensity: 0.4, roughness: 0.45 })
+    );
+    ring.name = 'LevelQuestRing-' + level.id;
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = -0.32;
+    questObject.add(ring);
+    questObject.visible = false;
+    group.add(questObject);
+
+    const finishPlatform = parkourCourse?.platforms.find((platform) => platform.finish) || null;
+    const finishX = finishPlatform?.x ?? level.itemX;
+    const finishZ = finishPlatform?.z ?? 8.1;
+    const finishY = finishPlatform?.top ?? 0.0775;
+    const finishZone = level.finishTrigger || { x: finishX, z: finishZ, rx: 1.05, rz: 0.92 };
+    const pressurePlate = new THREE.Group();
+    pressurePlate.name = 'Level' + level.id + '-FinishPressurePlate';
+    pressurePlate.position.set(finishX, finishY + 0.002, finishZ);
+    pressurePlate.userData.finishPoint = { x: finishX, y: finishY, z: finishZ };
+    pressurePlate.userData.zone = finishZone;
+    pressurePlate.userData.triggerHalfWidth = finishZone.rx;
+    pressurePlate.userData.triggerHalfDepth = finishZone.rz;
+    const baseMesh = new THREE.Mesh(new THREE.BoxGeometry(1.70, 0.05, 1.32),
+      new THREE.MeshStandardMaterial({ color: '#315b75', emissive: '#173b52', emissiveIntensity: 0.35, roughness: 0.56, metalness: 0.14, flatShading: true }));
+    baseMesh.name = 'FinishPressurePlateBase';
+    baseMesh.position.y = 0.025;
+    baseMesh.castShadow = false;
+    baseMesh.receiveShadow = true;
+    pressurePlate.add(baseMesh);
+    const plateMaterial = new THREE.MeshStandardMaterial({ color: level.bright, emissive: level.color, emissiveIntensity: 0.28, roughness: 0.36, metalness: 0.12, flatShading: true });
+    const plateMesh = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.055, 1.08), plateMaterial);
+    plateMesh.name = 'FinishPressurePlateTop';
+    plateMesh.position.y = 0.045;
+    plateMesh.castShadow = false;
+    plateMesh.receiveShadow = true;
+    pressurePlate.userData.plate = plateMesh;
+    pressurePlate.userData.plateRestY = 0.045;
+    pressurePlate.userData.platePressedY = 0.018;
+    pressurePlate.userData.plateMaterial = plateMaterial;
+    pressurePlate.userData.statusLeds = [];
+    pressurePlate.add(plateMesh);
+    const mark = new THREE.Mesh(new THREE.CircleGeometry(0.16, 20), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }));
+    mark.name = 'FinishPressurePlateMark';
+    mark.rotation.x = -Math.PI / 2;
+    mark.position.y = 0.029;
+    plateMesh.add(mark);
+    for (const [index, x, z] of [[0,-0.61,-0.45],[1,0.61,-0.45],[2,-0.61,0.45],[3,0.61,0.45]]) {
+      const ledMaterial = new THREE.MeshStandardMaterial({ color: '#86bacc', emissive: '#438ca6', emissiveIntensity: 0.5, roughness: 0.35, metalness: 0.1 });
+      const led = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), ledMaterial);
+      led.name = 'FinishPressurePlateLED-' + index;
+      led.position.set(x, 0.070, z);
+      led.castShadow = false;
+      pressurePlate.userData.statusLeds.push(led);
+      pressurePlate.add(led);
+    }
+    group.userData.finishPressurePlate = pressurePlate;
+    group.add(pressurePlate);
+    if (level.id === 5) pressurePlate.visible = false;
+
+    group.userData.disposeMaterials = [...(group.userData.disposeMaterials || []), ...materialCache.values(), itemMaterial, ring.material];
+    group.userData.disposeGeometries = [...(group.userData.disposeGeometries || [])];
+    group.traverse((object) => {
+      if (object.isMesh && object.geometry !== itemGeometry && object.geometry !== ring.geometry) group.userData.disposeGeometries.push(object.geometry);
+    });
+    group.userData.disposeGeometries.push(itemGeometry, ring.geometry);
+    return { group, solids, questObject, checkpointGroups, animatedMechanic, animatedMechanic2, special };
+  }
+
+  disposeArena(group) {
+    this.scene.remove(group);
+    group.userData.disposed = true;
+    const materials = new Set(group.userData.disposeMaterials || []);
+    const geometries = new Set(group.userData.disposeGeometries || []);
+    const textures = new Set(group.userData.disposeTextures || []);
+    group.traverse((object) => {
+      if (object.geometry) geometries.add(object.geometry);
+      const list = Array.isArray(object.material) ? object.material : [object.material];
+      for (const mat of list) if (mat) materials.add(mat);
+    });
+    for (const texture of textures) texture.dispose?.();
+    for (const geometry of geometries) geometry.dispose?.();
+    for (const mat of materials) mat.dispose?.();
+    group.clear();
+  }
+
+  dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
+    const arena = this.activeArena;
+    const activePhysics = this.activePhysics;
+    this.activeArena = null;
+    this.activePhysics = null;
+    this.activeLevel = null;
+    this.questObject = null;
+    this.animatedMechanic = null;
+    this.animatedMechanic2 = null;
+    this.special = null;
+    if (activePhysics && activePhysics !== this.basePhysics) activePhysics.dispose();
+    if (this.game) {
+      this.game.physics = this.basePhysics;
+      if (this.game.movement) this.game.movement.physics = this.basePhysics;
+      if (this.game.inventory) {
+        this.game.inventory.physics = this.basePhysics;
+        this.game.inventory.levelMode = false;
+      }
+    }
+    if (arena) this.disposeArena(arena);
+    this.shelter.root.visible = true;
+    for (const saved of this.hiddenPickupRoots) if (saved.root) saved.root.visible = saved.visible;
+    this.hiddenPickupRoots = [];
+    if (this.game.inventory?.ringIdleMesh) this.game.inventory.ringIdleMesh.visible = true;
+    if (this.game.inventory?.ringActiveMesh) this.game.inventory.ringActiveMesh.visible = true;
+    if (this.gateCollider && this.basePhysics?.world) {
+      try { this.basePhysics.world.removeCollider(this.gateCollider, true); } catch { /* Ignore disposal races. */ }
+      this.gateCollider = null;
+    }
+  }
+}

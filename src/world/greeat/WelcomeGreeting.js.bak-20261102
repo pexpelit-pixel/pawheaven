@@ -1,0 +1,58 @@
+import { applyTranslations } from '../../core/Localization.js';
+
+export function showWelcomeGreeting(inputController) {
+  if (typeof document === 'undefined' || document.getElementById('welcome-greeting')) return null;
+
+  const root = document.createElement('div');
+  root.id = 'welcome-greeting';
+  root.className = 'welcome-greeting';
+  root.innerHTML = `
+    <section class="welcome-greeting__card" role="dialog" aria-modal="true" aria-labelledby="welcome-greeting-title" aria-describedby="welcome-greeting-message">
+      <div class="welcome-greeting__sparkle welcome-greeting__sparkle--one" aria-hidden="true">✦</div>
+      <div class="welcome-greeting__sparkle welcome-greeting__sparkle--two" aria-hidden="true">✧</div>
+      <div class="welcome-greeting__mascot" aria-hidden="true">
+        <span class="welcome-greeting__mascot-paw">🐾</span>
+        <span class="welcome-greeting__mascot-star">✦</span>
+      </div>
+      <p class="welcome-greeting__eyebrow" data-i18n="welcome.eyebrow"></p>
+      <h1 id="welcome-greeting-title" data-i18n="welcome.title"></h1>
+      <p id="welcome-greeting-message" class="welcome-greeting__message" data-i18n="welcome.message"></p>
+      <div class="welcome-greeting__objective">
+        <span aria-hidden="true">🎁</span>
+        <span data-i18n="welcome.objective"></span>
+      </div>
+      <button class="welcome-greeting__continue" type="button">
+        <span data-i18n="welcome.continue"></span>
+        <span aria-hidden="true">↗</span>
+      </button>
+      <p class="welcome-greeting__signature" data-i18n="welcome.signature"></p>
+    </section>
+  `;
+
+  const gameRoot = document.getElementById('game') || document.body;
+  gameRoot.append(root);
+  applyTranslations(root);
+
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    document.removeEventListener('keydown', onKeyDown);
+    inputController?.setLocked?.(false);
+    root.remove();
+  };
+
+  const onKeyDown = (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+    }
+  };
+
+  inputController?.setLocked?.(true);
+  document.addEventListener('keydown', onKeyDown);
+  root.querySelector('.welcome-greeting__continue')?.addEventListener('click', close);
+  requestAnimationFrame(() => root.querySelector('.welcome-greeting__continue')?.focus());
+
+  return close;
+}

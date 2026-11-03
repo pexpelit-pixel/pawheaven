@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "scope": [
+    "world.physics",
+    "performance.stability",
+    "localization.foundation"
+  ],
+  "contract": {
+    "type": "design-baseline",
+    "note": "These entries define acceptance criteria and translation keys. Numeric values are reference targets, not runtime toggles. Runtime enforcement must be verified against source and tested on target devices."
+  },
+  "world": {
+    "physics": {
+      "id": "world.physics",
+      "titleKey": "rules.physics.title",
+      "summaryKey": "rules.physics.summary",
+      "rules": [
+        {
+          "id": "mass-gravity-momentum-collision",
+          "textKey": "rules.physics.massGravityMomentum",
+          "priority": "core"
+        },
+        {
+          "id": "distinct-movement-responses",
+          "textKey": "rules.physics.movementStates",
+          "priority": "core"
+        },
+        {
+          "id": "mass-scaled-object-impact",
+          "textKey": "rules.physics.massScaledImpacts",
+          "priority": "core"
+        },
+        {
+          "id": "no-penetration-floating-or-blocked-motion",
+          "textKey": "rules.physics.noPenetration",
+          "priority": "critical"
+        },
+        {
+          "id": "animation-follows-physics",
+          "textKey": "rules.physics.animationFollowsMotion",
+          "priority": "core"
+        }
+      ]
+    }
+  },
+  "performance": {
+    "stability": {
+      "id": "performance.stability",
+      "titleKey": "rules.performance.title",
+      "summaryKey": "rules.performance.summary",
+      "rules": [
+        {
+          "id": "adaptive-60-fps-target",
+          "textKey": "rules.performance.targetFps",
+          "priority": "goal"
+        },
+        {
+          "id": "fixed-step-physics",
+          "textKey": "rules.performance.fixedTimestep",
+          "priority": "critical"
+        },
+        {
+          "id": "distance-detail-with-collision-preserved",
+          "textKey": "rules.performance.distanceDetail",
+          "priority": "core"
+        },
+        {
+          "id": "skip-expensive-inactive-updates",
+          "textKey": "rules.performance.sleepInactive",
+          "priority": "core"
+        },
+        {
+          "id": "no-unexpected-reload-or-loading-loop",
+          "textKey": "rules.performance.noReloadLoop",
+          "priority": "critical"
+        },
+        {
+          "id": "recoverable-errors",
+          "textKey": "rules.performance.recoverableErrors",
+          "priority": "critical"
+        }
+      ]
+    }
+  },
+  "technicalTargets": {
+    "authoritativePhysicsHz": 60,
+    "desiredRenderFps": 60,
+    "adaptRenderQualityToPerformance": true,
+    "preserveGameplayCollidersWhenReducingVisualDetail": true,
+    "skipExpensiveUpdatesForSleepingBodies": true,
+    "retryWithoutForcedPageReload": true
+  }
+}
