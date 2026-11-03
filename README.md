@@ -142,3 +142,4 @@ The script:
 - `src/core/Localization.js` exports `t()`, `setLocale('en' | 'id')`, `getLocale()`, `applyTranslations()`, and `SUPPORTED_LOCALES`. A language selector is not part of the current UI yet; it can call `setLocale('id')` when added later.
 - Run `npm run check && npm run build` after adding or editing translation strings. The checker verifies that both catalogs have matching keys and that referenced UI/game-rule keys exist. Browser/runtime testing is still required for physical behavior and performance.
 
+# pawheaven
